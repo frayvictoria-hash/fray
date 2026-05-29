@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Átomo de Magnesio — Modelo Atómico Moderno</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #020810;
+    --panel: rgba(5,18,38,0.93);
+    --border: rgba(0,200,255,0.2);
+    --accent: #00c8ff;
+    --accent2: #ff6b35;
+    --text: #c8e8ff;
+    --dim: #4a7a9b;
+  }
+
+  body {
+    background: var(--bg);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh; width: 100vw;
+  }
+
+  #canvas-container {
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+  }
+  #canvas-container canvas { pointer-events: auto; }
+
+  /* ── ORBITAL LABELS (HTML overlays) ── */
+  .orb-label {
+    position: fixed;
+    z-index: 15;
+    pointer-events: none;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid;
+    backdrop-filter: blur(4px);
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.3s;
+    text-shadow: 0 0 8px currentColor;
+  }
+  .orb-label.shell1 { color: #6688ff; border-color: rgba(100,136,255,0.35); background: rgba(30,40,100,0.55); }
+  .orb-label.shell2 { color: #00aaff; border-color: rgba(0,170,255,0.35); background: rgba(0,30,80,0.55); }
+  .orb-label.shell3 { color: #00e5ff; border-color: rgba(0,229,255,0.35); background: rgba(0,40,70,0.55); }
+
+  /* ── ELECTRON LABELS — solo texto, sin cuadrado ni fondo ── */
+  .electron-label {
+    position: fixed;
+    z-index: 14;
+    pointer-events: none;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #00e5ff;
+    transform: translate(-50%, -50%);
+    text-shadow: 0 0 8px #00e5ff, 0 0 16px rgba(0,229,255,0.6);
+    white-space: nowrap;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 20; padding: 12px 24px;
+    display: flex; align-items: center; gap: 16px;
+    background: linear-gradient(180deg, rgba(2,8,16,0.96) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+    pointer-events: none;
+  }
+  .atom-symbol {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2.4rem; font-weight: 900; color: var(--accent);
+    text-shadow: 0 0 20px var(--accent), 0 0 40px rgba(0,200,255,0.3);
+    line-height: 1;
+  }
+  .atom-info { display: flex; flex-direction: column; }
+  .atom-name { font-family: 'Orbitron', sans-serif; font-size: 0.9rem; font-weight: 700; color: #fff; letter-spacing: 3px; }
+  .atom-sub  { font-size: 0.62rem; color: var(--dim); letter-spacing: 2px; margin-top: 2px; }
+  .config-badge {
+    margin-left: auto; font-size: 0.68rem; color: var(--accent);
+    background: rgba(0,200,255,0.07); border: 1px solid var(--border);
+    padding: 5px 12px; border-radius: 4px; letter-spacing: 1px;
+  }
+
+  /* ── HUD PANELS ── */
+  .hud-panel { position: fixed; z-index: 30; bottom: 48px; }
+  #panel { left: 16px; }
+  #info  { right: 16px; }
+
+  .hud-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border); border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    background: var(--panel); color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.52rem; letter-spacing: 2px;
+    cursor: pointer; user-select: none; width: 100%;
+    text-transform: uppercase; transition: background 0.2s;
+  }
+  .hud-btn:hover { background: rgba(0,200,255,0.14); }
+  .hud-btn .arrow { margin-left: auto; transition: transform 0.3s; display: inline-block; }
+  .hud-btn.open .arrow { transform: rotate(180deg); }
+
+  .hud-body {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 0 8px 8px 8px; width: 190px;
+    overflow: hidden; max-height: 0;
+    transition: max-height 0.38s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  #info .hud-body { border-radius: 8px 0 8px 8px; }
+  .hud-body.open { max-height: 400px; }
+  .hud-body-inner { padding: 13px 13px 12px; }
+
+  .panel-title {
+    font-family: 'Orbitron', sans-serif; font-size: 0.52rem;
+    letter-spacing: 3px; color: var(--accent); text-transform: uppercase;
+    margin-bottom: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--border);
+  }
+  .section-sep { height: 1px; background: var(--border); margin: 8px 0; }
+
+  .toggle-row {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-bottom: 8px; gap: 6px;
+  }
+  .toggle-label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.66rem; color: var(--text);
+    cursor: pointer; user-select: none; flex: 1;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .switch { position: relative; display: inline-block; width: 32px; height: 18px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 18px; cursor: pointer; transition: background 0.25s;
+  }
+  .slider::before {
+    content: ''; position: absolute; width: 12px; height: 12px;
+    left: 2px; top: 2px; background: #4a7a9b; border-radius: 50%;
+    transition: transform 0.25s, background 0.25s;
+  }
+  .switch input:checked + .slider { background: rgba(0,200,255,0.22); border-color: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(14px); background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  .speed-wrap { margin-top: 2px; }
+  .speed-label { font-size: 0.58rem; color: var(--dim); margin-bottom: 5px; letter-spacing: 1px; }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 3px;
+    background: rgba(0,200,255,0.15); border-radius: 2px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 7px var(--accent); cursor: pointer;
+  }
+
+  .info-title {
+    font-family: 'Orbitron', sans-serif; font-size: 0.52rem; letter-spacing: 3px;
+    color: var(--accent2); text-transform: uppercase;
+    margin-bottom: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--border);
+  }
+  .info-row { display: flex; justify-content: space-between; margin-bottom: 6px; align-items: baseline; }
+  .info-key { font-size: 0.61rem; color: var(--dim); }
+  .info-val { font-size: 0.72rem; color: #fff; font-family: 'Orbitron', sans-serif; font-weight: 700; }
+  .orbital-config {
+    margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--border);
+    font-size: 0.62rem; line-height: 1.9; color: var(--accent);
+  }
+  .orbital-config span { color: var(--dim); }
+
+  #tooltip {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    z-index: 20; font-size: 0.6rem; color: var(--dim);
+    letter-spacing: 1px; text-align: center; pointer-events: none; white-space: nowrap;
+  }
+
+  body::after {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);
+    pointer-events: none; z-index: 5;
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<!-- Orbital sublevel labels (positioned by JS each frame) -->
+<div class="orb-label shell1" id="lbl-1s">1s²</div>
+<div class="orb-label shell2" id="lbl-2s">2s²</div>
+<div class="orb-label shell2" id="lbl-2p">2p⁶</div>
+<div class="orb-label shell2" id="lbl-2px" style="color:#00aaff;border-color:rgba(0,170,255,0.35);background:rgba(0,30,80,0.55)">2pₓ</div>
+<div class="orb-label shell2" id="lbl-2py" style="color:#00ddff;border-color:rgba(0,220,255,0.35);background:rgba(0,40,80,0.55)">2p_y</div>
+<div class="orb-label shell2" id="lbl-2pz" style="color:#4488ff;border-color:rgba(68,136,255,0.35);background:rgba(20,30,90,0.55)">2p_z</div>
+<div class="orb-label shell2" id="lbl-2p">2p⁶</div>
+<div class="orb-label shell3" id="lbl-3s">3s²</div>
+
+<!-- Electron labels container (will be populated by JS) -->
+<div id="electron-labels-container"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="atom-symbol">Mg</div>
+  <div class="atom-info">
+    <div class="atom-name">MAGNESIO</div>
+    <div class="atom-sub">NÚMERO ATÓMICO 12 · MASA 24.305 u</div>
+  </div>
+  <div class="config-badge">1s² 2s² 2p⁶ 3s²</div>
+</header>
+
+<!-- LEFT PANEL -->
+<div id="panel" class="hud-panel">
+  <button class="hud-btn" id="btn-panel">
+    ⚛ Visibilidad <span class="arrow">▲</span>
+  </button>
+  <div class="hud-body" id="panel-body">
+    <div class="hud-body-inner">
+      <div class="panel-title">Partículas</div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#ff4444;box-shadow:0 0 5px #ff4444"></span>Protones (P⁺)</label>
+        <label class="switch"><input type="checkbox" id="tog-protons" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#4488ff;box-shadow:0 0 5px #4488ff"></span>Neutrones (N°)</label>
+        <label class="switch"><input type="checkbox" id="tog-neutrons" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#00ffff;box-shadow:0 0 8px #00ffff"></span>Electrones</label>
+        <label class="switch"><input type="checkbox" id="tog-electrons" checked><span class="slider"></span></label>
+      </div>
+      <div class="section-sep"></div>
+      <div class="panel-title">Estructura</div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#ffd700;box-shadow:0 0 5px #ffd700"></span>Núcleo</label>
+        <label class="switch"><input type="checkbox" id="tog-nucleus" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#ff8800;box-shadow:0 0 5px #ff8800"></span>Aura Nuclear</label>
+        <label class="switch"><input type="checkbox" id="tog-glow" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#44ff88;box-shadow:0 0 5px #44ff88"></span>Trails Cuánticos</label>
+        <label class="switch"><input type="checkbox" id="tog-trails" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#4488ff;box-shadow:0 0 5px #4488ff"></span>Orbitales</label>
+        <label class="switch"><input type="checkbox" id="tog-orbitals" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#88aaff;box-shadow:0 0 5px #88aaff"></span>Nube e⁻</label>
+        <label class="switch"><input type="checkbox" id="tog-cloud" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#ffffff;box-shadow:0 0 5px #fff"></span>Etiquetas</label>
+        <label class="switch"><input type="checkbox" id="tog-labels" checked><span class="slider"></span></label>
+      </div>
+      <div class="section-sep"></div>
+      <div class="speed-wrap">
+        <div class="speed-label">VELOCIDAD ORBITAL</div>
+        <input type="range" id="speed" min="0.1" max="3" step="0.1" value="1">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT INFO PANEL -->
+<div id="info" class="hud-panel">
+  <button class="hud-btn" id="btn-info" style="color:var(--accent2);border-color:rgba(255,107,53,0.25)">
+    📋 Datos Mg <span class="arrow">▲</span>
+  </button>
+  <div class="hud-body" id="info-body">
+    <div class="hud-body-inner">
+      <div class="info-title">Número Atómico 12</div>
+      <div class="info-row"><span class="info-key">Protones (P⁺)</span><span class="info-val" style="color:#ff6666">12</span></div>
+      <div class="info-row"><span class="info-key">Neutrones (N°)</span><span class="info-val" style="color:#4488ff">12</span></div>
+      <div class="info-row"><span class="info-key">Electrones (e⁻)</span><span class="info-val" style="color:#00ffff">12</span></div>
+      <div class="info-row"><span class="info-key">Capas</span><span class="info-val">3</span></div>
+      <div class="info-row"><span class="info-key">Periodo</span><span class="info-val">3</span></div>
+      <div class="info-row"><span class="info-key">Grupo</span><span class="info-val">2 (IIA)</span></div>
+      <div class="orbital-config">
+        <span>Config. electrónica:</span><br>
+        1s² · 2s² · 2p⁶ · 3s²<br>
+        <span>Valencia:</span> [Ne] 3s²
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip">🖱 ARRASTRAR para rotar · SCROLL para zoom · CLIC DERECHO para desplazar</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─────────────────────────────────────────────
+//  HUD TOGGLES
+// ─────────────────────────────────────────────
+function toggleHUD(bodyId, btnId) {
+  const body = document.getElementById(bodyId);
+  const btn  = document.getElementById(btnId);
+  btn.classList.toggle('open', body.classList.toggle('open'));
+}
+document.getElementById('btn-panel').addEventListener('click', e => { e.stopPropagation(); toggleHUD('panel-body','btn-panel'); });
+document.getElementById('btn-info').addEventListener('click',  e => { e.stopPropagation(); toggleHUD('info-body','btn-info'); });
+
+// ─────────────────────────────────────────────
+//  THREE.JS SETUP
+// ─────────────────────────────────────────────
+const container = document.getElementById('canvas-container');
+const renderer  = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x020810);
+scene.fog = new THREE.FogExp2(0x020810, 0.013);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(0, 8, 28);
+
+scene.add(new THREE.AmbientLight(0x112244, 1.2));
+const pLight = new THREE.PointLight(0x00c8ff, 2.5, 60);
+scene.add(pLight);
+const rLight = new THREE.PointLight(0xff6b35, 1, 40);
+rLight.position.set(10,10,0);
+scene.add(rLight);
+
+// ─────────────────────────────────────────────
+//  GROUPS
+// ─���───────────────────────────────────────────
+const gNucleus   = new THREE.Group();
+const gProtons   = new THREE.Group();
+const gNeutrons  = new THREE.Group();
+const gElectrons = new THREE.Group();
+const gOrbitals  = new THREE.Group();
+const gCloud     = new THREE.Group();
+const gLabels3D  = new THREE.Group(); // sprite labels for P/N/e-
+const gTrails    = new THREE.Group(); // trails cuánticos
+scene.add(gNucleus, gProtons, gNeutrons, gElectrons, gOrbitals, gCloud, gLabels3D, gTrails);
+
+// ─────────────────────────────────────────────
+//  SPRITE LABEL HELPER - SIN CANVAS BORDER
+// ─────────────────────────────────────────────
+function makeLetterSprite(letter, color, size = 0.55) {
+  const canvasSize = 128;
+  const cv   = document.createElement('canvas');
+  cv.width   = canvasSize; cv.height = canvasSize;
+  const ctx  = cv.getContext('2d');
+
+  // Fondo completamente transparente
+  ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+  // Dibujar solo la letra sin cuadro
+  ctx.font         = `bold ${canvasSize * 0.65}px Arial`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle    = color;
+  ctx.shadowColor  = color;
+  ctx.shadowBlur   = 22;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.fillText(letter, canvasSize / 2, canvasSize / 2);
+
+  const tex = new THREE.CanvasTexture(cv);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const spr = new THREE.Sprite(mat);
+  spr.scale.set(size, size, size);
+  return spr;
+}
+
+// ─────────────────────────────────────────────
+//  NUCLEUS GLOW
+// ─────────────────────────────────────────────
+const nucMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(1.6, 32, 32),
+  new THREE.MeshPhongMaterial({ 
+    color:0xffd700, 
+    emissive:0xff8800, 
+    emissiveIntensity:0.8, 
+    transparent:true, 
+    opacity:0.42
+  })
+);
+gNucleus.add(nucMesh);
+
+const auraGlow = new THREE.Mesh(
+  new THREE.SphereGeometry(2.4, 32, 32),
+  new THREE.MeshBasicMaterial({ 
+    color:0xff6600, 
+    transparent:true, 
+    opacity:0.08, 
+    side:THREE.BackSide 
+  })
+);
+gNucleus.add(auraGlow);
+
+const auraGlow2 = new THREE.Mesh(
+  new THREE.SphereGeometry(3.2, 32, 32),
+  new THREE.MeshBasicMaterial({ 
+    color:0xff8800, 
+    transparent:true, 
+    opacity:0.03, 
+    side:THREE.BackSide 
+  })
+);
+gNucleus.add(auraGlow2);
+
+// ─────────────────────────────────────────────
+//  PROTONS & NEUTRONS  +  P⁺ / N° sprites
+// ─────────────────────────────────────────────
+function makeSphere(r, color, emissive, ei) {
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(r, 16, 16),
+    new THREE.MeshPhongMaterial({ color, emissive, emissiveIntensity:ei, shininess:90 })
+  );
+}
+function fibSphere(n, radius) {
+  const pts=[], phi=Math.PI*(3-Math.sqrt(5));
+  for(let i=0;i<n;i++){
+    const y=1-(i/(n-1))*2, r=Math.sqrt(1-y*y), t=phi*i;
+    pts.push(new THREE.Vector3(Math.cos(t)*r*radius, y*radius, Math.sin(t)*r*radius));
+  }
+  return pts;
+}
+
+const protonPositions  = fibSphere(12, 1.15);
+const neutronPositions = fibSphere(12, 0.72);
+
+const protonSprites = [];
+const neutronSprites = [];
+
+protonPositions.forEach((pos, idx) => {
+  const m = makeSphere(0.38, 0xff3333, 0xff0000, 0.6);
+  m.position.copy(pos);
+  gProtons.add(m);
+  
+  const spr = makeLetterSprite('P⁺', '#ffffff', 0.65);
+  spr.position.copy(pos);
+  gLabels3D.add(spr);
+  protonSprites.push({ sprite: spr, pos: pos.clone(), idx });
+});
+
+neutronPositions.forEach((pos, idx) => {
+  const m = makeSphere(0.38, 0x4488ff, 0x2266dd, 0.4);
+  m.position.copy(pos);
+  gNeutrons.add(m);
+  
+  const spr = makeLetterSprite('N°', '#ddddff', 0.65);
+  spr.position.copy(pos);
+  gLabels3D.add(spr);
+  neutronSprites.push({ sprite: spr, pos: pos.clone(), idx });
+});
+
+// ─────────────────────────────────────────────
+//  QUANTUM TRAILS
+// ─────────────────────────────────────────────
+function createTrailLine() {
+  const curve = new THREE.LineCurve3(
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 0, 0)
+  );
+  const geo = new THREE.TubeGeometry(curve, 8, 0.06, 4, false);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x44ff88,
+    transparent: true,
+    opacity: 0.4,
+    emissive: 0x22ff66
+  });
+  return new THREE.Mesh(geo, mat);
+}
+
+const trailLines = [];
+for(let i = 0; i < 24; i++) {
+  const trail = createTrailLine();
+  gTrails.add(trail);
+  trailLines.push({
+    mesh: trail,
+    position: i < 12 ? protonPositions[i].clone() : neutronPositions[i - 12].clone(),
+    lastPos: i < 12 ? protonPositions[i].clone() : neutronPositions[i - 12].clone(),
+    isProton: i < 12,
+    age: 0
+  });
+}
+
+// ─────────────────────────────────────────────
+//  ORBITAL RINGS (anillos guía finos)
+// ─────────────────────────────────────────────
+function makeRing(radius, color, tiltX, tiltZ) {
+  const pts=[];
+  for(let i=0;i<=256;i++){
+    const a=(i/256)*Math.PI*2;
+    pts.push(new THREE.Vector3(Math.cos(a)*radius,0,Math.sin(a)*radius));
+  }
+  const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts,true),256,0.025,4,true);
+  const mat = new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.22});
+  const m   = new THREE.Mesh(geo,mat);
+  if(tiltX) m.rotation.x=tiltX;
+  if(tiltZ) m.rotation.z=tiltZ;
+  return m;
+}
+gOrbitals.add(makeRing(4.5,  0x4466ff, Math.PI/2));
+gOrbitals.add(makeRing(8.5,  0x0099ff, Math.PI/2));
+gOrbitals.add(makeRing(8.5,  0x0077dd, Math.PI/3));
+gOrbitals.add(makeRing(8.5,  0x0055bb, -Math.PI/3));
+gOrbitals.add(makeRing(13.5, 0x00ddff, Math.PI/2));
+gOrbitals.add(makeRing(13.5, 0x00bbdd, Math.PI/5));
+
+// ─────────────────────────────────────────────
+//  ORBITAL 1s — ESFERA DE DENSIDAD RADIAL CON GRADIENTE
+//  Capas concéntricas translúcidas: más opacas en el centro
+// ─────────────────────────────────────────────
+(function build1s(){
+  const layers = [
+    {r:1.8,  op:0.18, col:0x7788ff},
+    {r:2.8,  op:0.10, col:0x5566dd},
+    {r:4.0,  op:0.06, col:0x3344bb},
+    {r:5.0,  op:0.03, col:0x2233aa},
+  ];
+  layers.forEach(l=>{
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(l.r, 32, 32),
+      new THREE.MeshBasicMaterial({color:l.col,transparent:true,opacity:l.op,side:THREE.BackSide,depthWrite:false})
+    );
+    gOrbitals.add(m);
+  });
+})();
+
+// ─────────────────────────────────────────────
+//  ORBITALES 2p — LÓBULOS 3D TRANSLÚCIDOS (mancuernas en x, y, z)
+//  Forma: dos esferas alargadas simétricas por eje
+// ─────────────────────────────────────────────
+function makePLobe(axisDir, color) {
+  // Cada lóbulo = esfera deformada (scale asimétrico) en dirección del eje
+  const geo = new THREE.SphereGeometry(1, 32, 24);
+  const mat = new THREE.MeshPhongMaterial({
+    color, transparent:true, opacity:0.13,
+    side:THREE.DoubleSide, depthWrite:false,
+    shininess:30, emissive:color, emissiveIntensity:0.12
+  });
+  const lobeGroup = new THREE.Group();
+  // lóbulo positivo
+  const m1 = new THREE.Mesh(geo, mat.clone());
+  m1.scale.set(
+    axisDir==='x'?3.5:1.2,
+    axisDir==='y'?3.5:1.2,
+    axisDir==='z'?3.5:1.2
+  );
+  m1.position.set(
+    axisDir==='x'?4.2:0,
+    axisDir==='y'?4.2:0,
+    axisDir==='z'?4.2:0
+  );
+  // lóbulo negativo
+  const m2 = new THREE.Mesh(geo, mat.clone());
+  m2.scale.copy(m1.scale);
+  m2.position.set(
+    axisDir==='x'?-4.2:0,
+    axisDir==='y'?-4.2:0,
+    axisDir==='z'?-4.2:0
+  );
+  lobeGroup.add(m1, m2);
+  return lobeGroup;
+}
+// 2px, 2py, 2pz — colores diferentes para distinguirlos
+const lobe2px = makePLobe('x', 0x00aaff);
+const lobe2py = makePLobe('y', 0x00ddff);
+const lobe2pz = makePLobe('z', 0x0066ff);
+gOrbitals.add(lobe2px, lobe2py, lobe2pz);
+
+// Contorno punteado de cada par de lóbulos p (nodo entre lóbulos)
+function addPLobeOutline(axisDir, color) {
+  const pts=[];
+  for(let i=0;i<=64;i++){
+    const a=(i/64)*Math.PI*2;
+    pts.push(new THREE.Vector3(
+      axisDir==='x'?0:Math.cos(a)*8.5,
+      axisDir==='y'?0:axisDir==='z'?Math.cos(a)*8.5:Math.sin(a)*8.5,
+      axisDir==='z'?0:Math.sin(a)*8.5
+    ));
+  }
+}
+
+// ─────────────────────────────────────────────
+//  ORBITAL 3s — ESFERA DE DENSIDAD RADIAL
+//  Más difusa y amplia que 1s; con nodo radial visible
+// ─────────────────────────────────────────────
+(function build3s(){
+  // Nodo radial entre capa interna y externa (zona de probabilidad 0)
+  const layers = [
+    {r:10.5, op:0.04, col:0x00eeff},
+    {r:12.0, op:0.07, col:0x00ddff},
+    {r:13.5, op:0.10, col:0x00ccff},
+    {r:15.0, op:0.07, col:0x00bbee},
+    {r:16.5, op:0.04, col:0x0099cc},
+  ];
+  layers.forEach(l=>{
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(l.r, 32, 32),
+      new THREE.MeshBasicMaterial({color:l.col,transparent:true,opacity:l.op,side:THREE.BackSide,depthWrite:false})
+    );
+    gOrbitals.add(m);
+  });
+  // Zona del nodo (opacidad muy baja - vacío entre lóbulos)
+  const nodeMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(11.0, 32, 32),
+    new THREE.MeshBasicMaterial({color:0x000820,transparent:true,opacity:0.04,side:THREE.FrontSide,depthWrite:false})
+  );
+  gOrbitals.add(nodeMesh);
+})();
+
+// ─────────────────────────────────────────────
+//  ELECTRONS - CON COLOR CIAN BRILLANTE
+// ─────────────────────────────────────────────
+const shellData   = [{r:4.5},{r:8.5},{r:13.5}];
+const shellCounts = [2,8,2];
+const electronDefs = [
+  {shell:0,idx:0},{shell:0,idx:1},
+  {shell:1,idx:0},{shell:1,idx:1},{shell:1,idx:2},{shell:1,idx:3},
+  {shell:1,idx:4},{shell:1,idx:5},{shell:1,idx:6},{shell:1,idx:7},
+  {shell:2,idx:0},{shell:2,idx:1},
+];
+const ringTilts = [
+  [Math.PI/2],
+  [Math.PI/2, Math.PI/3, -Math.PI/3],
+  [Math.PI/2, Math.PI/5],
+];
+
+const electronMeshes = [];
+const electronLabels = [];
+const electronSprites = [];
+const labelContainer = document.getElementById('electron-labels-container');
+
+electronDefs.forEach((def, eIdx) => {
+  const total = shellCounts[def.shell];
+  const tilts = ringTilts[def.shell];
+  const tilt  = tilts[Math.floor(def.idx/(total/tilts.length))%tilts.length];
+
+  // Electrón CIAN BRILLANTE
+  const eMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.38, 16, 16),
+    new THREE.MeshPhongMaterial({
+      color:0x00ffff,           // CIAN PURO
+      emissive:0x00ffff,        // Brilla CIAN
+      emissiveIntensity:1.8,    // MÁS BRILLO
+      shininess:120
+    })
+  );
+  eMesh.add(new THREE.Mesh(
+    new THREE.SphereGeometry(0.72, 16, 16),
+    new THREE.MeshBasicMaterial({
+      color:0x00ffff,
+      transparent:true,
+      opacity:0.22,
+      side:THREE.BackSide
+    })
+  ));
+  gElectrons.add(eMesh);
+
+  // Etiqueta e⁻ 3D sin borde
+  const eSpr = makeLetterSprite('e⁻', '#ffffff', 0.68);
+  eSpr.position.copy(eMesh.position);
+  gLabels3D.add(eSpr);
+
+  // Etiqueta HTML — solo "e⁻" sin número, sin fondo, centrada en la bola
+  const label = document.createElement('div');
+  label.className = 'electron-label';
+  label.textContent = `e⁻`;
+  label.id = `elec-label-${eIdx}`;
+  labelContainer.appendChild(label);
+
+  electronMeshes.push({
+    mesh:eMesh, shell:def.shell, idx:def.idx, total,
+    radius:shellData[def.shell].r, tilt,
+    phaseOffset:(def.idx/total)*Math.PI*2,
+    speed:0.8+Math.random()*0.4,
+    labelEl: label,
+    eIdx: eIdx,
+    sprite: eSpr,
+    glowMesh: eMesh.children[0],
+    trailPositions: [],
+  });
+
+  electronLabels.push(label);
+  electronSprites.push(eSpr);
+});
+
+// ─────────────────────────────────────────────
+//  NUBE DE PROBABILIDAD DIFERENCIADA POR ORBITAL
+//  Cada orbital tiene su propia nube con color y densidad propia
+// ─────────────────────────────────────────────
+
+// Helper: genera nube esférica concentrada alrededor de radio r0
+function makeSphericalCloud(count, r0, spread, color, opacity, size) {
+  const pos = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    // distribución gaussiana radial centrada en r0
+    const dr = (Math.random()+Math.random()+Math.random()-1.5)*spread;
+    const r  = Math.max(0.1, r0+dr);
+    const th = Math.random()*Math.PI*2;
+    const ph = Math.acos(2*Math.random()-1);
+    pos[i*3]  =r*Math.sin(ph)*Math.cos(th);
+    pos[i*3+1]=r*Math.sin(ph)*Math.sin(th);
+    pos[i*3+2]=r*Math.cos(ph);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat = new THREE.PointsMaterial({color,size,transparent:true,opacity,sizeAttenuation:true,depthWrite:false});
+  return new THREE.Points(geo,mat);
+}
+
+// Helper: genera nube con forma de lóbulos p (concentrada en +/- de un eje)
+function makePCloud(count, r0, spread, axisDir, color, opacity, size) {
+  const pos = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    const sign = Math.random()<0.5?1:-1;
+    const dr   = (Math.random()+Math.random()-1)*spread;
+    const r    = Math.max(0.2, r0+dr);
+    // concentrar la nube en el eje dado con dispersión angular
+    const angSpread = 0.55; // ángulo medio del lóbulo en radianes
+    const polarAngle = Math.random()*angSpread;
+    const azimuth    = Math.random()*Math.PI*2;
+    const sinP = Math.sin(polarAngle), cosP = Math.cos(polarAngle);
+    const x = sinP*Math.cos(azimuth), y = sinP*Math.sin(azimuth), z = cosP;
+    if(axisDir==='x'){ pos[i*3]=sign*r*z; pos[i*3+1]=r*x*0.6; pos[i*3+2]=r*y*0.6; }
+    else if(axisDir==='y'){ pos[i*3]=r*x*0.6; pos[i*3+1]=sign*r*z; pos[i*3+2]=r*y*0.6; }
+    else { pos[i*3]=r*x*0.6; pos[i*3+1]=r*y*0.6; pos[i*3+2]=sign*r*z; }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat = new THREE.PointsMaterial({color,size,transparent:true,opacity,sizeAttenuation:true,depthWrite:false});
+  return new THREE.Points(geo,mat);
+}
+
+// Orbital 1s — esférico, muy concentrado, azul-violeta
+gCloud.add(makeSphericalCloud(600, 4.5, 1.4, 0x6677ff, 0.30, 0.20));
+
+// Orbital 2s — esférico, algo más difuso, azul medio
+gCloud.add(makeSphericalCloud(500, 8.5, 1.6, 0x0099ff, 0.22, 0.18));
+
+// Orbitales 2p × 3 — lóbulos direccionales en x, y, z
+gCloud.add(makePCloud(700, 8.2, 1.8, 'x', 0x00aaff, 0.20, 0.18));
+gCloud.add(makePCloud(700, 8.2, 1.8, 'y', 0x00ddff, 0.20, 0.18));
+gCloud.add(makePCloud(700, 8.2, 1.8, 'z', 0x4488ff, 0.20, 0.18));
+
+// Orbital 3s — esférico, muy difuso, cian claro
+gCloud.add(makeSphericalCloud(600, 13.5, 2.2, 0x00eeff, 0.16, 0.17));
+
+const cloudMat = { opacity: 0.22 }; // placeholder para compatibilidad con el animate loop
+
+// ─────────────────────────────────────────────
+//  DYNAMIC STARS
+// ─────────────────────────────────────────────
+const starPositions = new Float32Array(1200*3);
+const starVelocities = new Float32Array(1200*3);
+for(let i=0;i<1200;i++){
+  starPositions[i*3]  =(Math.random()-0.5)*400;
+  starPositions[i*3+1]=(Math.random()-0.5)*400;
+  starPositions[i*3+2]=(Math.random()-0.5)*400;
+  
+  starVelocities[i*3]  =(Math.random()-0.5)*0.02;
+  starVelocities[i*3+1]=(Math.random()-0.5)*0.02;
+  starVelocities[i*3+2]=(Math.random()-0.5)*0.02;
+}
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position',new THREE.BufferAttribute(starPositions,3));
+const starMat = new THREE.PointsMaterial({color:0x334466,size:0.28,sizeAttenuation:true});
+const starField = new THREE.Points(starGeo,starMat);
+scene.add(starField);
+
+// ─────────────────────────────────────────────
+//  CAMERA CONTROLS
+// ─────────────────────────────────────────────
+let isDragging=false, isRightDrag=false, prevX=0, prevY=0;
+let rotX=0.2, rotY=0, panX=0, panY=0, zoom=28;
+const MIN_ZOOM=6, MAX_ZOOM=80;
+const cvs = renderer.domElement;
+
+cvs.addEventListener('mousedown',e=>{ isDragging=true; isRightDrag=e.button===2; prevX=e.clientX; prevY=e.clientY; });
+window.addEventListener('mouseup',()=>isDragging=false);
+window.addEventListener('mousemove',e=>{
+  if(!isDragging) return;
+  const dx=e.clientX-prevX, dy=e.clientY-prevY;
+  if(isRightDrag){panX-=dx*0.02;panY+=dy*0.02;}
+  else{rotY+=dx*0.006;rotX+=dy*0.006;}
+  prevX=e.clientX; prevY=e.clientY;
+});
+cvs.addEventListener('wheel',e=>{zoom=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,zoom+e.deltaY*0.04));});
+cvs.addEventListener('contextmenu',e=>e.preventDefault());
+
+let lastTouchDist=null;
+cvs.addEventListener('touchstart',e=>{
+  if(e.touches.length===1){isDragging=true;prevX=e.touches[0].clientX;prevY=e.touches[0].clientY;}
+  if(e.touches.length===2) lastTouchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+});
+cvs.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(e.touches.length===1&&isDragging){rotY+=(e.touches[0].clientX-prevX)*0.006;rotX+=(e.touches[0].clientY-prevY)*0.006;prevX=e.touches[0].clientX;prevY=e.touches[0].clientY;}
+  if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(lastTouchDist)zoom=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,zoom-(d-lastTouchDist)*0.1));lastTouchDist=d;}
+},{passive:false});
+cvs.addEventListener('touchend',()=>{isDragging=false;lastTouchDist=null;});
+
+// ─────────────────────────────────────────────
+//  VISIBILITY TOGGLES
+// ──────────────────────────────��──────────────
+let showLabels = true;
+document.getElementById('tog-protons').addEventListener('change',   e=>{ gProtons.visible   = e.target.checked; updateLabelVis(); });
+document.getElementById('tog-neutrons').addEventListener('change',  e=>{ gNeutrons.visible  = e.target.checked; updateLabelVis(); });
+document.getElementById('tog-electrons').addEventListener('change', e=>{ gElectrons.visible = e.target.checked; updateElectronLabelVis(); });
+document.getElementById('tog-nucleus').addEventListener('change',   e=>{ gNucleus.visible   = e.target.checked; });
+document.getElementById('tog-glow').addEventListener('change',      e=>{ auraGlow.visible = e.target.checked; auraGlow2.visible = e.target.checked; });
+document.getElementById('tog-trails').addEventListener('change',    e=>{ gTrails.visible   = e.target.checked; });
+document.getElementById('tog-orbitals').addEventListener('change',  e=>{ gOrbitals.visible  = e.target.checked; updateOrbitalLabelVis(); });
+document.getElementById('tog-cloud').addEventListener('change',     e=>{ gCloud.visible     = e.target.checked; });
+document.getElementById('tog-labels').addEventListener('change',    e=>{ showLabels = e.target.checked; updateLabelVis(); updateOrbitalLabelVis(); updateElectronLabelVis(); });
+
+function updateLabelVis() {
+  const protonsOn  = document.getElementById('tog-protons').checked;
+  const neutronsOn = document.getElementById('tog-neutrons').checked;
+  protonSprites.forEach(s  => s.sprite.visible = showLabels && protonsOn);
+  neutronSprites.forEach(s => s.sprite.visible = showLabels && neutronsOn);
+}
+
+function updateElectronLabelVis() {
+  const electronsOn = document.getElementById('tog-electrons').checked;
+  const vis = showLabels && electronsOn;
+  electronLabels.forEach(label => {
+    label.style.opacity = vis ? '1' : '0';
+  });
+  electronSprites.forEach(spr => {
+    spr.visible = showLabels && electronsOn;
+  });
+}
+
+function updateOrbitalLabelVis() {
+  const orbitalsOn = document.getElementById('tog-orbitals').checked;
+  const vis = showLabels && orbitalsOn;
+  ['lbl-1s','lbl-2s','lbl-2p','lbl-3s','lbl-2px','lbl-2py','lbl-2pz'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.opacity = vis ? '1' : '0';
+  });
+}
+
+let speedMult = 1;
+document.getElementById('speed').addEventListener('input',e=>speedMult=parseFloat(e.target.value));
+
+// ─────────────────────────────────────────────
+//  HTML LABEL POSITIONING
+// ─────────────────────────────────────────────
+const labelAnchors = {
+  '1s': new THREE.Vector3(0,  4.5,  0),
+  '2s': new THREE.Vector3(0,  8.5,  0),
+  '2p': new THREE.Vector3(8.5*Math.sin(Math.PI/3), 0, 8.5*Math.cos(Math.PI/3)),
+  '3s': new THREE.Vector3(0, 13.5,  0),
+  '2px': new THREE.Vector3(6.5, 0, 0),
+  '2py': new THREE.Vector3(0, 6.5, 0),
+  '2pz': new THREE.Vector3(0, 0, 6.5),
+};
+const labelEls = {
+  '1s': document.getElementById('lbl-1s'),
+  '2s': document.getElementById('lbl-2s'),
+  '2p': document.getElementById('lbl-2p'),
+  '3s': document.getElementById('lbl-3s'),
+  '2px': document.getElementById('lbl-2px'),
+  '2py': document.getElementById('lbl-2py'),
+  '2pz': document.getElementById('lbl-2pz'),
+};
+
+function projectToScreen(worldVec) {
+  const v = worldVec.clone().project(camera);
+  return {
+    x: (v.x *  0.5 + 0.5) * innerWidth,
+    y: (v.y * -0.5 + 0.5) * innerHeight,
+    behind: v.z > 1,
+  };
+}
+
+function updateHTMLLabels() {
+  for(const [key, anchor] of Object.entries(labelAnchors)) {
+    const el  = labelEls[key];
+    const pos = projectToScreen(anchor);
+    if(pos.behind) { el.style.opacity='0'; continue; }
+    el.style.left = pos.x + 'px';
+    el.style.top  = pos.y + 'px';
+  }
+
+  electronMeshes.forEach(e => {
+    const pos = projectToScreen(e.mesh.position);
+    if(pos.behind) { 
+      e.labelEl.style.opacity = '0';
+      return;
+    }
+    e.labelEl.style.left = pos.x + 'px';
+    e.labelEl.style.top  = pos.y + 'px';
+    e.labelEl.style.opacity = showLabels && document.getElementById('tog-electrons').checked ? '1' : '0';
+  });
+}
+
+// ─────────────────────────────────────────────
+//  ESTELAS DE ELECTRONES — cinematic plasma trails
+// ─────────────────────────────────────────────
+const TRAIL_LENGTH = 36;
+
+electronMeshes.forEach(e => {
+  // Historial de posiciones world-space
+  e.trailHistory = [];
+  for (let i = 0; i < TRAIL_LENGTH; i++)
+    e.trailHistory.push(new THREE.Vector3());
+
+  const positions = new Float32Array(TRAIL_LENGTH * 3);
+  const colors    = new Float32Array(TRAIL_LENGTH * 3);
+  const sizes     = new Float32Array(TRAIL_LENGTH);
+
+  // Color base tomado del variant si existe, sino cyan por shell
+  const shellFallback = [0x4488ff, 0x00ffff, 0x00ffcc];
+  const baseCol = new THREE.Color(e.variant ? e.variant.core : shellFallback[e.shell]);
+
+  for (let i = 0; i < TRAIL_LENGTH; i++) {
+    const fade = 1 - i / TRAIL_LENGTH;
+    colors[i*3]   = baseCol.r * fade;
+    colors[i*3+1] = baseCol.g * fade;
+    colors[i*3+2] = baseCol.b * fade;
+    sizes[i] = 0.30 * fade * fade;
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(colors,    3));
+  geo.setAttribute('size',     new THREE.BufferAttribute(sizes,     1));
+
+  const mat = new THREE.PointsMaterial({
+    vertexColors:    true,
+    size:            0.30,
+    transparent:     true,
+    opacity:         0.85,
+    sizeAttenuation: true,
+    depthWrite:      false,
+    blending:        THREE.AdditiveBlending,
+  });
+
+  const pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false;
+  scene.add(pts);
+
+  e.trailPts       = pts;
+  e.trailGeo       = geo;
+  e.trailBaseColor = baseCol;
+  e.trailMat       = mat;
+
+  // Estado interno para efectos reactivos
+  e.prevPos    = new THREE.Vector3();
+  e.pulsePhase = Math.random() * Math.PI * 2;
+  e.noiseOffX  = Math.random() * 100;
+  e.noiseOffY  = Math.random() * 100;
+});
+
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime() * speedMult;
+
+  // ── Camera ── (SIN TOCAR)
+  rotX = Math.max(-Math.PI/2+0.05, Math.min(Math.PI/2-0.05, rotX));
+  camera.position.x = Math.sin(rotY)*Math.cos(rotX)*zoom + panX;
+  camera.position.y = Math.sin(rotX)*zoom + panY;
+  camera.position.z = Math.cos(rotY)*Math.cos(rotX)*zoom;
+  camera.lookAt(panX, panY, 0);
+
+  // ── Nucleus ── (SIN TOCAR)
+  const vibration = Math.sin(t*4.5)*0.08 + Math.sin(t*2.8)*0.05;
+  nucMesh.scale.setScalar(1 + vibration + Math.sin(t*2.5)*0.03);
+  
+  auraGlow.material.opacity  = 0.12 + Math.sin(t*1.8)*0.08;
+  auraGlow2.material.opacity = 0.05 + Math.sin(t*1.4)*0.04;
+  pLight.intensity = 2.2 + Math.sin(t*2.2)*0.7;
+  
+  // ── Nucleons ── (SIN TOCAR)
+  const pyAngle = t*0.12;
+  const nyAngle = -t*0.09;
+  const nxAngle = t*0.07;
+
+  gProtons.rotation.y  = pyAngle;
+  gNeutrons.rotation.y = nyAngle;
+  gNeutrons.rotation.x = nxAngle;
+
+  protonSprites.forEach((p, i) => {
+    const worldPos = p.pos.clone().applyEuler(new THREE.Euler(0, pyAngle, 0));
+    const vib = Math.sin(t*5 + i)*0.12;
+    worldPos.multiplyScalar(1 + vib);
+    p.sprite.position.copy(worldPos);
+  });
+  
+  neutronSprites.forEach((n, i) => {
+    const worldPos = n.pos.clone().applyEuler(new THREE.Euler(nxAngle, nyAngle, 0));
+    const vib = Math.sin(t*4.2 + i)*0.1;
+    worldPos.multiplyScalar(1 + vib);
+    n.sprite.position.copy(worldPos);
+  });
+
+  // ── Nucleus trails ── (SIN TOCAR)
+  trailLines.forEach((trail, idx) => {
+    trail.age += 0.016;
+    if(trail.age > 0.5) {
+      trail.age = 0;
+      if(trail.isProton) {
+        const rot = new THREE.Euler(0, pyAngle, 0);
+        trail.lastPos = protonPositions[trail.position.idx % 12].clone().applyEuler(rot);
+      } else {
+        const rot = new THREE.Euler(nxAngle, nyAngle, 0);
+        trail.lastPos = neutronPositions[(trail.position.idx - 12) % 12].clone().applyEuler(rot);
+      }
+    }
+    trail.mesh.material.opacity = 0.4 * (1 - trail.age / 0.5);
+  });
+
+  // ─────────────────────────────────────────────
+  //  ELECTRONS — cinematic quantum update
+  // ─────────────────────────────────────────────
+  const speedFactor = Math.min((speedMult - 0.1) / 2.9, 1);
+
+  electronMeshes.forEach(e => {
+    const baseSpeed = [1.4, 0.75, 0.45][e.shell];
+    const angle = t * baseSpeed * e.speed + e.phaseOffset;
+
+    // Posición orbital base
+    const bx = Math.cos(angle) * e.radius;
+    const bz = Math.sin(angle) * e.radius;
+
+    // Quantum micro-noise (Perlin 2D)
+    const ns = 0.50, nsp = 0.24;
+    const nx = snoise2(e.noiseOffX + t * nsp,        e.noiseOffY)             * ns;
+    const ny = snoise2(e.noiseOffX + t * nsp + 5.3,  e.noiseOffY + t * 0.18) * ns * 0.65;
+    const nz = snoise2(e.noiseOffX + t * nsp + 11.7, e.noiseOffY + t * 0.14) * ns;
+
+    const wx = bx + nx;
+    const wy = Math.sin(e.tilt) * (bz + nz) + ny;
+    const wz = Math.cos(e.tilt) * (bz + nz) + nz * 0.3;
+
+    e.mesh.position.set(wx, wy, wz);
+    e.sprite.position.copy(e.mesh.position);
+
+    // Velocidad instantánea → sf reactivo 0..1
+    const vel = e.mesh.position.distanceTo(e.prevPos);
+    e.prevPos.copy(e.mesh.position);
+    const sf = Math.min(vel * 20.0, 1.0);
+
+    // Energy pulse orgánico
+    const pulse = 0.5 + 0.5 * Math.sin(t * 1.7 + e.pulsePhase)
+                + 0.15 * Math.sin(t * 3.6 + e.pulsePhase * 1.4);
+
+    // Core emissive reactivo
+    e.mesh.material.emissiveIntensity = 1.8 + pulse * 0.6 + sf * 2.8;
+
+    // Glow layer 1 — tight halo
+    if (e.glowMesh) {
+      e.glowMesh.scale.setScalar(1.0 + pulse * 0.13 + sf * 0.30);
+      e.glowMesh.material.opacity = 0.22 + pulse * 0.09 + sf * 0.28;
+    }
+    // Glow layer 2 — mid halo
+    if (e.glow2) {
+      e.glow2.scale.setScalar(1.0 + pulse * 0.20 + sf * 0.40);
+      e.glow2.material.opacity = 0.08 + pulse * 0.06 + sf * 0.12;
+    }
+    // Glow layer 3 — outer bloom
+    if (e.glow3) {
+      e.glow3.scale.setScalar(1.0 + pulse * 0.25 + sf * 0.55);
+      e.glow3.material.opacity = 0.035 + sf * 0.07;
+    }
+
+    // Core shader uniforms (flicker)
+    if (e.coreMat && e.coreMat.userData.shader) {
+      e.coreMat.userData.shader.uniforms.uTime.value  = t;
+      e.coreMat.userData.shader.uniforms.uPulse.value = pulse;
+    }
+
+    // Trail — shift history
+    e.trailHistory.unshift(new THREE.Vector3(wx, wy, wz));
+    if (e.trailHistory.length > TRAIL_LENGTH) e.trailHistory.length = TRAIL_LENGTH;
+
+    const posArr  = e.trailGeo.attributes.position.array;
+    const colArr  = e.trailGeo.attributes.color.array;
+    const sizeArr = e.trailGeo.attributes.size.array;
+
+    // Longitud activa crece con velocidad
+    const activeLen = Math.max(4, Math.round(6 + speedFactor * (TRAIL_LENGTH - 6)));
+
+    for (let i = 0; i < TRAIL_LENGTH; i++) {
+      const src = e.trailHistory[i] || e.trailHistory[e.trailHistory.length - 1];
+      posArr[i*3]   = src.x;
+      posArr[i*3+1] = src.y;
+      posArr[i*3+2] = src.z;
+
+      const fade = i < activeLen ? Math.pow(1 - i / activeLen, 1.6) : 0;
+      const bright = fade * (0.75 + sf * 0.50);
+      colArr[i*3]   = e.trailBaseColor.r * bright;
+      colArr[i*3+1] = e.trailBaseColor.g * bright;
+      colArr[i*3+2] = e.trailBaseColor.b * bright;
+      sizeArr[i]    = (0.32 + speedFactor * 0.18) * fade;
+    }
+
+    e.trailGeo.attributes.position.needsUpdate = true;
+    e.trailGeo.attributes.color.needsUpdate    = true;
+    e.trailGeo.attributes.size.needsUpdate     = true;
+
+    e.trailMat.opacity = 0.45 + sf * 0.50;
+    e.trailPts.visible = gElectrons.visible;
+  });
+
+  // ── Cloud pulsing ── (SIN TOCAR)
+  const cloudPulse = 0.85 + Math.sin(t*0.8)*0.15;
+  gCloud.children.forEach(pts => {
+    if(pts.material) pts.material.opacity = pts.material.opacity * cloudPulse * (1/cloudPulse);
+  });
+  
+  // ── Stars ── (SIN TOCAR)
+  const posAttr = starGeo.getAttribute('position');
+  const array = posAttr.array;
+  for(let i = 0; i < 1200; i++) {
+    array[i*3]   += starVelocities[i*3];
+    array[i*3+1] += starVelocities[i*3+1];
+    array[i*3+2] += starVelocities[i*3+2];
+    
+    if(Math.abs(array[i*3])   > 200) array[i*3]   *= -1;
+    if(Math.abs(array[i*3+1]) > 200) array[i*3+1] *= -1;
+    if(Math.abs(array[i*3+2]) > 200) array[i*3+2] *= -1;
+  }
+  posAttr.needsUpdate = true;
+
+  updateHTMLLabels();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize',()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+</sscript>
+</body>
+</html>
