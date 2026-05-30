@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Átomo de Magnesio — Modelo Atómico Moderno</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #020810;
+    --panel: rgba(5,18,38,0.93);
+    --border: rgba(0,200,255,0.2);
+    --accent: #00c8ff;
+    --accent2: #ff6b35;
+    --text: #c8e8ff;
+    --dim: #4a7a9b;
+  }
+
+  body {
+    background: var(--bg);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh; width: 100vw;
+  }
+
+  #canvas-container {
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+  }
+  #canvas-container canvas { pointer-events: auto; }
+
+  /* ── ORBITAL LABELS ── */
+  .orb-label {
+    position: fixed;
+    z-index: 15;
+    pointer-events: none;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid;
+    backdrop-filter: blur(4px);
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.5s ease;
+    text-shadow: 0 0 8px currentColor;
+  }
+  .orb-label.shell1 { color: #6688ff; border-color: rgba(100,136,255,0.35); background: rgba(30,40,100,0.55); }
+  .orb-label.shell2 { color: #00aaff; border-color: rgba(0,170,255,0.35); background: rgba(0,30,80,0.55); }
+  .orb-label.shell3 { color: #00e5ff; border-color: rgba(0,229,255,0.35); background: rgba(0,40,70,0.55); }
+
+  /* ── ELECTRON LABELS ── */
+  .electron-label {
+    position: fixed;
+    z-index: 14;
+    pointer-events: none;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #00e5ff;
+    transform: translate(-50%, -50%);
+    text-shadow: 0 0 8px #00e5ff, 0 0 16px rgba(0,229,255,0.6);
+    white-space: nowrap;
+    transition: opacity 0.5s ease;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 20; padding: 12px 24px;
+    display: flex; align-items: center; gap: 16px;
+    background: linear-gradient(180deg, rgba(2,8,16,0.96) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+    pointer-events: none;
+  }
+  .atom-symbol {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2.4rem; font-weight: 900; color: var(--accent);
+    text-shadow: 0 0 20px var(--accent), 0 0 40px rgba(0,200,255,0.3);
+    line-height: 1;
+  }
+  .atom-info { display: flex; flex-direction: column; }
+  .atom-name { font-family: 'Orbitron', sans-serif; font-size: 0.9rem; font-weight: 700; color: #fff; letter-spacing: 3px; }
+  .atom-sub  { font-size: 0.62rem; color: var(--dim); letter-spacing: 2px; margin-top: 2px; }
+  .config-badge {
+    margin-left: auto; font-size: 0.68rem; color: var(--accent);
+    background: rgba(0,200,255,0.07); border: 1px solid var(--border);
+    padding: 5px 12px; border-radius: 4px; letter-spacing: 1px;
+  }
+
+  /* ── HUD PANELS ── */
+  .hud-panel { position: fixed; z-index: 30; bottom: 48px; }
+  #panel { left: 16px; }
+  #info  { right: 16px; }
+
+  .hud-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border); border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    background: var(--panel); color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.52rem; letter-spacing: 2px;
+    cursor: pointer; user-select: none; width: 100%;
+    text-transform: uppercase; transition: background 0.2s;
+  }
+  .hud-btn:hover { background: rgba(0,200,255,0.14); }
+  .hud-btn .arrow { margin-left: auto; transition: transform 0.3s; display: inline-block; }
+  .hud-btn.open .arrow { transform: rotate(180deg); }
+
+  .hud-body {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 0 8px 8px 8px; width: 190px;
+    overflow: hidden; max-height: 0;
+    transition: max-height 0.38s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  #info .hud-body { border-radius: 8px 0 8px 8px; }
+  .hud-body.open { max-height: 500px; }
+  .hud-body-inner { padding: 13px 13px 12px; }
+
+  .panel-title {
+    font-family: 'Orbitron', sans-serif; font-size: 0.52rem;
+    letter-spacing: 3px; color: var(--accent); text-transform: uppercase;
+    margin-bottom: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--border);
+  }
+  .section-sep { height: 1px; background: var(--border); margin: 8px 0; }
+
+  .toggle-row {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-bottom: 8px; gap: 6px;
+  }
+  .toggle-label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.66rem; color: var(--text);
+    cursor: pointer; user-select: none; flex: 1;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .switch { position: relative; display: inline-block; width: 32px; height: 18px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 18px; cursor: pointer; transition: background 0.25s;
+  }
+  .slider::before {
+    content: ''; position: absolute; width: 12px; height: 12px;
+    left: 2px; top: 2px; background: #4a7a9b; border-radius: 50%;
+    transition: transform 0.25s, background 0.25s;
+  }
+  .switch input:checked + .slider { background: rgba(0,200,255,0.22); border-color: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(14px); background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  .speed-wrap { margin-top: 2px; }
+  .zoom-wrap  { margin-top: 8px; }
+  .speed-label { font-size: 0.58rem; color: var(--dim); margin-bottom: 5px; letter-spacing: 1px; }
+  .slider-row  { display: flex; align-items: center; gap: 7px; }
+  .slider-val  {
+    font-family: 'Orbitron', sans-serif; font-size: 0.58rem;
+    color: var(--accent); min-width: 28px; text-align: right; flex-shrink: 0;
+  }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 3px;
+    background: rgba(0,200,255,0.15); border-radius: 2px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 7px var(--accent); cursor: pointer;
+  }
+
+  .info-title {
+    font-family: 'Orbitron', sans-serif; font-size: 0.52rem; letter-spacing: 3px;
+    color: var(--accent2); text-transform: uppercase;
+    margin-bottom: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--border);
+  }
+  .info-row { display: flex; justify-content: space-between; margin-bottom: 6px; align-items: baseline; }
+  .info-key { font-size: 0.61rem; color: var(--dim); }
+  .info-val { font-size: 0.72rem; color: #fff; font-family: 'Orbitron', sans-serif; font-weight: 700; }
+  .orbital-config {
+    margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--border);
+    font-size: 0.62rem; line-height: 1.9; color: var(--accent);
+  }
+  .orbital-config span { color: var(--dim); }
+
+  #tooltip {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    z-index: 20; font-size: 0.6rem; color: var(--dim);
+    letter-spacing: 1px; text-align: center; pointer-events: none; white-space: nowrap;
+  }
+
+  /* ══════════════════════════════════════════
+     PC / DESKTOP — escalado completo
+     ══════════════════════════════════════════ */
+  @media (min-width: 768px) {
+
+    /* Header más grande */
+    header { padding: 18px 40px; gap: 22px; }
+    .atom-symbol { font-size: 3.8rem; }
+    .atom-name   { font-size: 1.35rem; letter-spacing: 5px; }
+    .atom-sub    { font-size: 0.85rem; letter-spacing: 3px; margin-top: 4px; }
+    .config-badge {
+      font-size: 1.0rem; padding: 8px 20px;
+      letter-spacing: 2px; border-radius: 6px;
+    }
+
+    /* Etiquetas orbitales */
+    .orb-label {
+      font-size: 0.88rem;
+      padding: 4px 12px;
+      border-radius: 6px;
+      letter-spacing: 2px;
+    }
+
+    /* Etiquetas electrones */
+    .electron-label { font-size: 0.78rem; }
+
+    /* HUD panels */
+    .hud-panel { bottom: 36px; }
+    #panel { left: 28px; }
+    #info  { right: 28px; }
+
+    .hud-btn {
+      font-size: 0.75rem;
+      padding: 10px 18px;
+      letter-spacing: 3px;
+      border-radius: 10px 10px 0 0;
+    }
+
+    .hud-body {
+      width: 270px;
+      border-radius: 0 10px 10px 10px;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.7);
+    }
+    #info .hud-body { border-radius: 10px 0 10px 10px; }
+    .hud-body.open { max-height: 680px; }
+    .hud-body-inner { padding: 18px 18px 16px; }
+
+    .panel-title {
+      font-size: 0.72rem;
+      letter-spacing: 4px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+    }
+    .section-sep { margin: 12px 0; }
+
+    .toggle-row  { margin-bottom: 12px; gap: 10px; }
+    .toggle-label { font-size: 0.88rem; gap: 10px; }
+    .dot { width: 10px; height: 10px; }
+
+    .switch { width: 44px; height: 24px; }
+    .slider::before { width: 18px; height: 18px; left: 2px; top: 2px; }
+    .switch input:checked + .slider::before { transform: translateX(20px); }
+
+    .speed-label { font-size: 0.76rem; margin-bottom: 8px; }
+    .slider-val  { font-size: 0.76rem; min-width: 36px; }
+    input[type=range] { height: 4px; }
+    input[type=range]::-webkit-slider-thumb { width: 18px; height: 18px; }
+
+    .info-title  { font-size: 0.72rem; letter-spacing: 4px; margin-bottom: 14px; padding-bottom: 10px; }
+    .info-key    { font-size: 0.84rem; }
+    .info-val    { font-size: 1.0rem; }
+    .info-row    { margin-bottom: 10px; }
+    .orbital-config { font-size: 0.84rem; line-height: 2.1; margin-top: 12px; padding-top: 12px; }
+
+    #tooltip { font-size: 0.82rem; bottom: 14px; }
+  }
+
+  @media (min-width: 1200px) {
+    .atom-symbol { font-size: 4.4rem; }
+    .atom-name   { font-size: 1.55rem; }
+    .hud-body    { width: 300px; }
+    .toggle-label { font-size: 0.92rem; }
+  }
+
+  /* Scanline overlay */
+  body::after {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);
+    pointer-events: none; z-index: 5;
+  }
+
+  /* Post-processing canvas overlay */
+  #post-canvas {
+    position: fixed; inset: 0; z-index: 1;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    opacity: 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<canvas id="post-canvas"></canvas>
+
+<!-- Orbital sublevel labels -->
+<div class="orb-label shell1" id="lbl-1s">1s²</div>
+<div class="orb-label shell2" id="lbl-2s">2s²</div>
+<div class="orb-label shell2" id="lbl-2p">2p⁶</div>
+<div class="orb-label shell2" id="lbl-2px" style="color:#00aaff;border-color:rgba(0,170,255,0.35);background:rgba(0,30,80,0.55)">2pₓ</div>
+<div class="orb-label shell2" id="lbl-2py" style="color:#00ddff;border-color:rgba(0,220,255,0.35);background:rgba(0,40,80,0.55)">2p_y</div>
+<div class="orb-label shell2" id="lbl-2pz" style="color:#4488ff;border-color:rgba(68,136,255,0.35);background:rgba(20,30,90,0.55)">2p_z</div>
+<div class="orb-label shell3" id="lbl-3s">3s²</div>
+
+<!-- Electron labels container -->
+<div id="electron-labels-container"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="atom-symbol">Mg</div>
+  <div class="atom-info">
+    <div class="atom-name">MAGNESIO</div>
+    <div class="atom-sub">NÚMERO ATÓMICO 12 · MASA 24.305 u</div>
+  </div>
+  <div class="config-badge">1s² 2s² 2p⁶ 3s²</div>
+</header>
+
+<!-- LEFT PANEL -->
+<div id="panel" class="hud-panel">
+  <button class="hud-btn" id="btn-panel">
+    ⚛ Visibilidad <span class="arrow">▲</span>
+  </button>
+  <div class="hud-body" id="panel-body">
+    <div class="hud-body-inner">
+      <div class="panel-title">Partículas</div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#ff4444;box-shadow:0 0 5px #ff4444"></span>Protones (P⁺)</label>
+        <label class="switch"><input type="checkbox" id="tog-protons" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#4488ff;box-shadow:0 0 5px #4488ff"></span>Neutrones (N°)</label>
+        <label class="switch"><input type="checkbox" id="tog-neutrons" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#00ffff;box-shadow:0 0 8px #00ffff"></span>Electrones</label>
+        <label class="switch"><input type="checkbox" id="tog-electrons" checked><span class="slider"></span></label>
+      </div>
+      <div class="section-sep"></div>
+      <div class="panel-title">Estructura</div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#ffd700;box-shadow:0 0 5px #ffd700"></span>Núcleo</label>
+        <label class="switch"><input type="checkbox" id="tog-nucleus" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#ff8800;box-shadow:0 0 5px #ff8800"></span>Aura Nuclear</label>
+        <label class="switch"><input type="checkbox" id="tog-glow" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#44ff88;box-shadow:0 0 5px #44ff88"></span>Trails Cuánticos</label>
+        <label class="switch"><input type="checkbox" id="tog-trails" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#4488ff;box-shadow:0 0 5px #4488ff"></span>Orbitales</label>
+        <label class="switch"><input type="checkbox" id="tog-orbitals" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#88aaff;box-shadow:0 0 5px #88aaff"></span>Nube e⁻</label>
+        <label class="switch"><input type="checkbox" id="tog-cloud" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label"><span class="dot" style="background:#ffffff;box-shadow:0 0 5px #fff"></span>Etiquetas</label>
+        <label class="switch"><input type="checkbox" id="tog-labels" checked><span class="slider"></span></label>
+      </div>
+      <div class="section-sep"></div>
+      <div class="speed-wrap">
+        <div class="speed-label">VELOCIDAD ORBITAL</div>
+        <div class="slider-row">
+          <input type="range" id="speed" min="0.1" max="3" step="0.1" value="1">
+          <span class="slider-val" id="speed-val">1.0x</span>
+        </div>
+      </div>
+      <div class="zoom-wrap">
+        <div class="speed-label">ZOOM DE CÁMARA</div>
+        <div class="slider-row">
+          <input type="range" id="zoom-slider" min="6" max="80" step="1" value="28">
+          <span class="slider-val" id="zoom-val">28</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT INFO PANEL -->
+<div id="info" class="hud-panel">
+  <button class="hud-btn" id="btn-info" style="color:var(--accent2);border-color:rgba(255,107,53,0.25)">
+    📋 Datos Mg <span class="arrow">▲</span>
+  </button>
+  <div class="hud-body" id="info-body">
+    <div class="hud-body-inner">
+      <div class="info-title">Número Atómico 12</div>
+      <div class="info-row"><span class="info-key">Protones (P⁺)</span><span class="info-val" style="color:#ff6666">12</span></div>
+      <div class="info-row"><span class="info-key">Neutrones (N°)</span><span class="info-val" style="color:#4488ff">12</span></div>
+      <div class="info-row"><span class="info-key">Electrones (e⁻)</span><span class="info-val" style="color:#00ffff">12</span></div>
+      <div class="info-row"><span class="info-key">Capas</span><span class="info-val">3</span></div>
+      <div class="info-row"><span class="info-key">Periodo</span><span class="info-val">3</span></div>
+      <div class="info-row"><span class="info-key">Grupo</span><span class="info-val">2 (IIA)</span></div>
+      <div class="orbital-config">
+        <span>Config. electrónica:</span><br>
+        1s² · 2s² · 2p⁶ · 3s²<br>
+        <span>Valencia:</span> [Ne] 3s²
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip">🖱 ARRASTRAR para rotar · SCROLL para zoom · CLIC DERECHO para desplazar</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─────────────────────────────────────────────
+//  HUD TOGGLES
+// ─────────────────────────────────────────────
+function toggleHUD(bodyId, btnId) {
+  const body = document.getElementById(bodyId);
+  const btn  = document.getElementById(btnId);
+  btn.classList.toggle('open', body.classList.toggle('open'));
+}
+document.getElementById('btn-panel').addEventListener('click', e => { e.stopPropagation(); toggleHUD('panel-body','btn-panel'); });
+document.getElementById('btn-info').addEventListener('click',  e => { e.stopPropagation(); toggleHUD('info-body','btn-info'); });
+
+// ─────────────────────────────────────────────
+//  NOISE UTILITIES (simplex-like)
+// ─────────────────────────────────────────────
+function hash(n) {
+  let x = Math.sin(n) * 43758.5453123;
+  return x - Math.floor(x);
+}
+function noise1D(x) {
+  const i = Math.floor(x);
+  const f = x - i;
+  const u = f * f * (3 - 2 * f);
+  return hash(i) * (1 - u) + hash(i + 1) * u;
+}
+function noise3D(x, y, z) {
+  return (noise1D(x * 1.7 + y * 3.1 + z * 0.9) - 0.5) * 2;
+}
+function smoothNoise(x, y, z, t) {
+  return noise3D(x + t * 0.3, y + t * 0.2, z + t * 0.4) * 0.5
+       + noise3D(x * 2.1 + t * 0.5, y * 2.3 + t * 0.4, z * 1.9) * 0.25
+       + noise3D(x * 4.2 + t * 0.7, y * 4.1 + t * 0.6, z * 3.8) * 0.125;
+}
+
+// ─────────────────────────────────────────────
+//  THREE.JS SETUP
+// ─────────────────────────────────────────────
+const container = document.getElementById('canvas-container');
+const renderer  = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = false;
+container.appendChild(renderer.domElement);
+
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x020810);
+// Volumetric atmosphere via subtle exponential fog
+scene.fog = new THREE.FogExp2(0x020c1a, 0.007);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(0, 8, 28);
+
+// Cinematic camera state
+let camTargetX = 0, camTargetY = 8, camTargetZ = 28;
+let camCurrentX = 0, camCurrentY = 8, camCurrentZ = 28;
+
+scene.add(new THREE.AmbientLight(0x112244, 1.2));
+const pLight = new THREE.PointLight(0x00c8ff, 2.5, 80);
+scene.add(pLight);
+const rLight = new THREE.PointLight(0xff6b35, 1.2, 60);
+rLight.position.set(10,10,0);
+scene.add(rLight);
+// Additional warm rim light
+const wLight = new THREE.PointLight(0xff9940, 0.6, 50);
+wLight.position.set(-12, -8, 5);
+scene.add(wLight);
+
+// ─────────────────────────────────────────────
+//  GROUPS
+// ─────────────────────────────────────────────
+const gNucleus   = new THREE.Group();
+const gProtons   = new THREE.Group();
+const gNeutrons  = new THREE.Group();
+const gElectrons = new THREE.Group();
+const gOrbitals  = new THREE.Group();
+const gCloud     = new THREE.Group();
+const gLabels3D  = new THREE.Group();
+const gTrails    = new THREE.Group();
+const gAtmosphere = new THREE.Group();
+scene.add(gNucleus, gProtons, gNeutrons, gElectrons, gOrbitals, gCloud, gLabels3D, gTrails, gAtmosphere);
+
+// ─────────────────────────────────────────────
+//  SPRITE LABEL HELPER
+// ─────────────────────────────────────────────
+function makeLetterSprite(letter, color, size = 0.55) {
+  const canvasSize = 128;
+  const cv   = document.createElement('canvas');
+  cv.width   = canvasSize; cv.height = canvasSize;
+  const ctx  = cv.getContext('2d');
+  ctx.clearRect(0, 0, canvasSize, canvasSize);
+  ctx.font         = `bold ${canvasSize * 0.65}px Arial`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle    = color;
+  ctx.shadowColor  = color;
+  ctx.shadowBlur   = 22;
+  ctx.fillText(letter, canvasSize / 2, canvasSize / 2);
+  const tex = new THREE.CanvasTexture(cv);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const spr = new THREE.Sprite(mat);
+  spr.scale.set(size, size, size);
+  return spr;
+}
+
+// ─────────────────────────────────────────────
+//  NUCLEUS — Enhanced living energy core
+// ─────────────────────────────────────────────
+const nucMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(1.6, 32, 32),
+  new THREE.MeshPhongMaterial({ 
+    color:0xffd700, 
+    emissive:0xff8800, 
+    emissiveIntensity:1.2, 
+    transparent:true, 
+    opacity:0.55,
+    shininess: 140,
+  })
+);
+gNucleus.add(nucMesh);
+
+// Inner plasma core
+const nucInner = new THREE.Mesh(
+  new THREE.SphereGeometry(0.9, 24, 24),
+  new THREE.MeshPhongMaterial({
+    color: 0xffffff,
+    emissive: 0xffdd00,
+    emissiveIntensity: 2.5,
+    transparent: true,
+    opacity: 0.35,
+    shininess: 200,
+  })
+);
+gNucleus.add(nucInner);
+
+const auraGlow = new THREE.Mesh(
+  new THREE.SphereGeometry(2.5, 32, 32),
+  new THREE.MeshBasicMaterial({ 
+    color:0xff6600, 
+    transparent:true, 
+    opacity:0.10, 
+    side:THREE.BackSide 
+  })
+);
+gNucleus.add(auraGlow);
+
+const auraGlow2 = new THREE.Mesh(
+  new THREE.SphereGeometry(3.8, 32, 32),
+  new THREE.MeshBasicMaterial({ 
+    color:0xff8800, 
+    transparent:true, 
+    opacity:0.05, 
+    side:THREE.BackSide 
+  })
+);
+gNucleus.add(auraGlow2);
+
+// Radial energy wave rings
+const energyWaves = [];
+for(let i = 0; i < 3; i++) {
+  const waveMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(2.0 + i * 0.8, 32, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xff9900,
+      transparent: true,
+      opacity: 0.0,
+      side: THREE.BackSide,
+      wireframe: false,
+    })
+  );
+  gNucleus.add(waveMesh);
+  energyWaves.push({ mesh: waveMesh, phase: (i / 3) * Math.PI * 2 });
+}
+
+// ─────────────────────────────────────────────
+//  PROTONS & NEUTRONS
+// ─────────────────────────────────────────────
+function makeSphere(r, color, emissive, ei) {
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(r, 16, 16),
+    new THREE.MeshPhongMaterial({ color, emissive, emissiveIntensity:ei, shininess:90 })
+  );
+}
+function fibSphere(n, radius) {
+  const pts=[], phi=Math.PI*(3-Math.sqrt(5));
+  for(let i=0;i<n;i++){
+    const y=1-(i/(n-1))*2, r=Math.sqrt(1-y*y), t=phi*i;
+    pts.push(new THREE.Vector3(Math.cos(t)*r*radius, y*radius, Math.sin(t)*r*radius));
+  }
+  return pts;
+}
+
+const protonPositions  = fibSphere(12, 1.15);
+const neutronPositions = fibSphere(12, 0.72);
+
+const protonSprites = [];
+const neutronSprites = [];
+
+protonPositions.forEach((pos, idx) => {
+  const m = makeSphere(0.38, 0xff3333, 0xff0000, 0.6);
+  m.position.copy(pos);
+  gProtons.add(m);
+  const spr = makeLetterSprite('P⁺', '#ffffff', 0.65);
+  spr.position.copy(pos);
+  gLabels3D.add(spr);
+  protonSprites.push({ sprite: spr, pos: pos.clone(), idx });
+});
+
+neutronPositions.forEach((pos, idx) => {
+  const m = makeSphere(0.38, 0x4488ff, 0x2266dd, 0.4);
+  m.position.copy(pos);
+  gNeutrons.add(m);
+  const spr = makeLetterSprite('N°', '#ddddff', 0.65);
+  spr.position.copy(pos);
+  gLabels3D.add(spr);
+  neutronSprites.push({ sprite: spr, pos: pos.clone(), idx });
+});
+
+// ─────────────────────────────────────────────
+//  QUANTUM TRAILS (nucleus)
+// ─────────────────────────────────────────────
+function createTrailLine() {
+  const curve = new THREE.LineCurve3(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0));
+  const geo = new THREE.TubeGeometry(curve, 8, 0.06, 4, false);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x44ff88, transparent: true, opacity: 0.4,
+  });
+  return new THREE.Mesh(geo, mat);
+}
+const trailLines = [];
+for(let i = 0; i < 24; i++) {
+  const trail = createTrailLine();
+  gTrails.add(trail);
+  trailLines.push({
+    mesh: trail,
+    position: i < 12 ? protonPositions[i].clone() : neutronPositions[i - 12].clone(),
+    lastPos: i < 12 ? protonPositions[i].clone() : neutronPositions[i - 12].clone(),
+    isProton: i < 12, age: 0
+  });
+}
+
+// ─────────────────────────────────────────────
+//  ORBITAL RINGS
+// ─────────────────────────────────────────────
+function makeRing(radius, color, tiltX, tiltZ) {
+  const pts=[];
+  for(let i=0;i<=256;i++){
+    const a=(i/256)*Math.PI*2;
+    pts.push(new THREE.Vector3(Math.cos(a)*radius,0,Math.sin(a)*radius));
+  }
+  const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts,true),256,0.025,4,true);
+  const mat = new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.22,depthWrite:false});
+  const m   = new THREE.Mesh(geo,mat);
+  if(tiltX) m.rotation.x=tiltX;
+  if(tiltZ) m.rotation.z=tiltZ;
+  return m;
+}
+const orbitalRings = [];
+orbitalRings.push(makeRing(4.5,  0x4466ff, Math.PI/2));
+orbitalRings.push(makeRing(8.5,  0x0099ff, Math.PI/2));
+orbitalRings.push(makeRing(8.5,  0x0077dd, Math.PI/3));
+orbitalRings.push(makeRing(8.5,  0x0055bb, -Math.PI/3));
+orbitalRings.push(makeRing(13.5, 0x00ddff, Math.PI/2));
+orbitalRings.push(makeRing(13.5, 0x00bbdd, Math.PI/5));
+orbitalRings.forEach(r => gOrbitals.add(r));
+
+// ─────────────────────────────────────────────
+//  ORBITAL 1s
+// ─────────────────────────────────────────────
+const cloud1sLayers = [];
+(function build1s(){
+  const layers = [
+    {r:1.8,  op:0.26, col:0x7788ff},
+    {r:2.8,  op:0.16, col:0x5566dd},
+    {r:4.0,  op:0.10, col:0x3344bb},
+    {r:5.0,  op:0.06, col:0x2233aa},
+  ];
+  layers.forEach(l=>{
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(l.r, 32, 32),
+      new THREE.MeshBasicMaterial({color:l.col,transparent:true,opacity:l.op,side:THREE.BackSide,depthWrite:false})
+    );
+    gOrbitals.add(m);
+    cloud1sLayers.push({ mesh: m, baseOp: l.op });
+  });
+})();
+
+// ─────────────────────────────────────────────
+//  ORBITALS 2p
+// ─────────────────────────────────────────────
+function makePLobe(axisDir, color) {
+  const geo = new THREE.SphereGeometry(1, 32, 24);
+  const mat = new THREE.MeshPhongMaterial({
+    color, transparent:true, opacity:0.13,
+    side:THREE.DoubleSide, depthWrite:false,
+    shininess:30, emissive:color, emissiveIntensity:0.12
+  });
+  const lobeGroup = new THREE.Group();
+  const m1 = new THREE.Mesh(geo, mat.clone());
+  m1.scale.set(
+    axisDir==='x'?3.5:1.2, axisDir==='y'?3.5:1.2, axisDir==='z'?3.5:1.2
+  );
+  m1.position.set(
+    axisDir==='x'?4.2:0, axisDir==='y'?4.2:0, axisDir==='z'?4.2:0
+  );
+  const m2 = new THREE.Mesh(geo, mat.clone());
+  m2.scale.copy(m1.scale);
+  m2.position.set(
+    axisDir==='x'?-4.2:0, axisDir==='y'?-4.2:0, axisDir==='z'?-4.2:0
+  );
+  lobeGroup.add(m1, m2);
+  return lobeGroup;
+}
+const lobe2px = makePLobe('x', 0x00aaff);
+const lobe2py = makePLobe('y', 0x00ddff);
+const lobe2pz = makePLobe('z', 0x0066ff);
+gOrbitals.add(lobe2px, lobe2py, lobe2pz);
+
+// Collect all p-lobe meshes for breathing
+const plobesMeshes = [];
+[lobe2px, lobe2py, lobe2pz].forEach(g => g.children.forEach(m => plobesMeshes.push(m)));
+
+// ─────────────────────────────────────────────
+//  ORBITAL 3s
+// ─────────────────────────────────────────────
+const cloud3sLayers = [];
+(function build3s(){
+  const layers = [
+    {r:10.5, op:0.07, col:0x00eeff},
+    {r:12.0, op:0.12, col:0x00ddff},
+    {r:13.5, op:0.17, col:0x00ccff},
+    {r:15.0, op:0.12, col:0x00bbee},
+    {r:16.5, op:0.07, col:0x0099cc},
+  ];
+  layers.forEach(l=>{
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(l.r, 32, 32),
+      new THREE.MeshBasicMaterial({color:l.col,transparent:true,opacity:l.op,side:THREE.BackSide,depthWrite:false})
+    );
+    gOrbitals.add(m);
+    cloud3sLayers.push({ mesh: m, baseOp: l.op });
+  });
+  const nodeMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(11.0, 32, 32),
+    new THREE.MeshBasicMaterial({color:0x000820,transparent:true,opacity:0.04,side:THREE.FrontSide,depthWrite:false})
+  );
+  gOrbitals.add(nodeMesh);
+})();
+
+// ─────────────────────────────────────────────
+//  QUANTUM GLOW TEXTURE
+// ─────────────────────────────────────────────
+function createQuantumGlowTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(size/2, size/2, 2, size/2, size/2, size/2);
+  gradient.addColorStop(0,    'rgba(255, 255, 255, 1)');
+  gradient.addColorStop(0.18, 'rgba(0, 240, 255, 0.95)');
+  gradient.addColorStop(0.45, 'rgba(0, 140, 255, 0.35)');
+  gradient.addColorStop(1,    'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
+const quantumGlowTex = createQuantumGlowTexture();
+
+// ─────────────────────────────────────────────
+//  ELECTRONS — Quantum sprite glow + organic noise
+// ─────────────────────────────────────────────
+const shellData   = [{r:4.5},{r:8.5},{r:13.5}];
+const shellCounts = [2,8,2];
+const electronDefs = [
+  {shell:0,idx:0},{shell:0,idx:1},
+  {shell:1,idx:0},{shell:1,idx:1},{shell:1,idx:2},{shell:1,idx:3},
+  {shell:1,idx:4},{shell:1,idx:5},{shell:1,idx:6},{shell:1,idx:7},
+  {shell:2,idx:0},{shell:2,idx:1},
+];
+const ringTilts = [
+  [Math.PI/2],
+  [Math.PI/2, Math.PI/3, -Math.PI/3],
+  [Math.PI/2, Math.PI/5],
+];
+
+const baseCyanTones = [0x00ffff, 0x00f0ff, 0x33ffeb, 0x00d5ff];
+const electronMeshes = [];
+const electronLabels = [];
+const electronSprites = [];
+const labelContainer = document.getElementById('electron-labels-container');
+const TRAIL_LENGTH = 45;
+
+electronDefs.forEach((def, eIdx) => {
+  const total = shellCounts[def.shell];
+  const tilts = ringTilts[def.shell];
+  const tilt  = tilts[Math.floor(def.idx/(total/tilts.length))%tilts.length];
+  const specificColor = baseCyanTones[eIdx % baseCyanTones.length];
+
+  // Group actúa como "mesh" posicionable
+  const eGroup = new THREE.Group();
+
+  // Sprite de glow principal (aditivo) — textura radial suave
+  const glowMat = new THREE.SpriteMaterial({
+    map: quantumGlowTex,
+    color: specificColor,
+    transparent: true,
+    opacity: 0.95,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const mainGlowSprite = new THREE.Sprite(glowMat);
+  mainGlowSprite.scale.set(1.7, 1.7, 1);
+  eGroup.add(mainGlowSprite);
+
+  // Sprite núcleo brillante blanco
+  const coreMat = new THREE.SpriteMaterial({
+    map: quantumGlowTex,
+    color: 0xffffff,
+    transparent: true,
+    opacity: 1.0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const coreSprite = new THREE.Sprite(coreMat);
+  coreSprite.scale.set(0.45, 0.45, 1);
+  eGroup.add(coreSprite);
+
+  gElectrons.add(eGroup);
+
+  // Etiqueta HTML
+  const label = document.createElement('div');
+  label.className = 'electron-label';
+  label.textContent = `e⁻`;
+  label.id = `elec-label-${eIdx}`;
+  labelContainer.appendChild(label);
+
+  // Trail como Line (más fluido que Points)
+  const trailPositions = Array(TRAIL_LENGTH).fill(null).map(() => new THREE.Vector3());
+  const trailGeo = new THREE.BufferGeometry();
+  const posArray = new Float32Array(TRAIL_LENGTH * 3);
+  const colArray = new Float32Array(TRAIL_LENGTH * 3);
+  const baseCol  = new THREE.Color(specificColor);
+
+  for(let i = 0; i < TRAIL_LENGTH; i++) {
+    const factor = 1 - (i / TRAIL_LENGTH);
+    const fade = Math.pow(factor, 2.4);
+    colArray[i*3]   = baseCol.r * fade;
+    colArray[i*3+1] = baseCol.g * fade;
+    colArray[i*3+2] = baseCol.b * fade;
+  }
+
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+  trailGeo.setAttribute('color',    new THREE.BufferAttribute(colArray, 3));
+
+  const trailMat = new THREE.LineBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.85,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+
+  const trailLine = new THREE.Line(trailGeo, trailMat);
+  trailLine.frustumCulled = false;
+  scene.add(trailLine);
+
+  // Semillas de ruido únicas por electrón
+  const noiseSeed = eIdx * 137.508 + Math.random() * 100;
+
+  electronMeshes.push({
+    mesh: eGroup,
+    mainGlowSprite, coreSprite,
+    shell: def.shell, idx: def.idx, total,
+    radius: shellData[def.shell].r, tilt,
+    phaseOffset: (def.idx / total) * Math.PI * 2,
+    speed: 0.85 + Math.random() * 0.3,
+    labelEl: label,
+    eIdx,
+    sprite: eGroup,        // compatibilidad con updateElectronLabelVis
+    glowMesh: mainGlowSprite, // compatibilidad con tog-trails toggle
+    trailPositions,
+    trailGeo, trailLine, trailMat,
+    trailBaseColor: baseCol,
+    noiseSeed,
+    noiseSeedX: Math.random() * 500,
+    noiseSeedY: Math.random() * 500,
+    noiseSeedZ: Math.random() * 500,
+    pulseSpeed: 4.5 + Math.random() * 3.0,
+  });
+
+  electronLabels.push(label);
+  electronSprites.push(eGroup);
+});
+
+// ─────────────────────────────────────────────
+//  QUANTUM PROBABILITY CLOUDS (with base opacity for animation)
+// ─────────────────────────────────────────────
+function makeSphericalCloud(count, r0, spread, color, opacity, size) {
+  const pos = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    const dr = (Math.random()+Math.random()+Math.random()-1.5)*spread;
+    const r  = Math.max(0.1, r0+dr);
+    const th = Math.random()*Math.PI*2;
+    const ph = Math.acos(2*Math.random()-1);
+    pos[i*3]  =r*Math.sin(ph)*Math.cos(th);
+    pos[i*3+1]=r*Math.sin(ph)*Math.sin(th);
+    pos[i*3+2]=r*Math.cos(ph);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat = new THREE.PointsMaterial({color,size,transparent:true,opacity,sizeAttenuation:true,depthWrite:false,blending:THREE.AdditiveBlending});
+  const pts = new THREE.Points(geo,mat);
+  pts.userData.baseOpacity = opacity;
+  return pts;
+}
+
+function makePCloud(count, r0, spread, axisDir, color, opacity, size) {
+  const pos = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    const sign = Math.random()<0.5?1:-1;
+    const dr   = (Math.random()+Math.random()-1)*spread;
+    const r    = Math.max(0.2, r0+dr);
+    const angSpread = 0.55;
+    const polarAngle = Math.random()*angSpread;
+    const azimuth    = Math.random()*Math.PI*2;
+    const sinP = Math.sin(polarAngle), cosP = Math.cos(polarAngle);
+    const x = sinP*Math.cos(azimuth), y = sinP*Math.sin(azimuth), z = cosP;
+    if(axisDir==='x'){ pos[i*3]=sign*r*z; pos[i*3+1]=r*x*0.6; pos[i*3+2]=r*y*0.6; }
+    else if(axisDir==='y'){ pos[i*3]=r*x*0.6; pos[i*3+1]=sign*r*z; pos[i*3+2]=r*y*0.6; }
+    else { pos[i*3]=r*x*0.6; pos[i*3+1]=r*y*0.6; pos[i*3+2]=sign*r*z; }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat = new THREE.PointsMaterial({color,size,transparent:true,opacity,sizeAttenuation:true,depthWrite:false,blending:THREE.AdditiveBlending});
+  const pts = new THREE.Points(geo,mat);
+  pts.userData.baseOpacity = opacity;
+  return pts;
+}
+
+gCloud.add(makeSphericalCloud(1000, 4.5, 1.4, 0x6677ff, 0.38, 0.22));
+gCloud.add(makeSphericalCloud(900,  8.5, 1.6, 0x0099ff, 0.28, 0.20));
+gCloud.add(makePCloud(1100,  8.2, 1.8, 'x', 0x00aaff, 0.26, 0.20));
+gCloud.add(makePCloud(1100,  8.2, 1.8, 'y', 0x00ddff, 0.26, 0.20));
+gCloud.add(makePCloud(1100,  8.2, 1.8, 'z', 0x4488ff, 0.26, 0.20));
+gCloud.add(makeSphericalCloud(1000, 13.5, 2.2, 0x00eeff, 0.22, 0.19));
+
+// ─────────────────────────────────────────────
+//  VOLUMETRIC ATMOSPHERE PARTICLES
+// ─────────────────────────────────────────────
+(function buildAtmosphere(){
+  const count = 800;
+  const pos = new Float32Array(count * 3);
+  for(let i = 0; i < count; i++){
+    // Distributed in a shell around the atom
+    const r = 15 + Math.random() * 25;
+    const th = Math.random() * Math.PI * 2;
+    const ph = Math.acos(2 * Math.random() - 1);
+    pos[i*3]   = r * Math.sin(ph) * Math.cos(th);
+    pos[i*3+1] = r * Math.sin(ph) * Math.sin(th);
+    pos[i*3+2] = r * Math.cos(ph);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    color: 0x002244, size: 0.55, transparent: true, opacity: 0.12,
+    sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  gAtmosphere.add(new THREE.Points(geo, mat));
+})();
+
+// (Trails ya construidos inline en la sección de electrones arriba)
+
+// ─────────────────────────────────────────────
+//  STARFIELD — enhanced with depth & flicker
+// ─────────────────────────────────────────────
+const STAR_COUNT = 1800;
+const starPositions  = new Float32Array(STAR_COUNT * 3);
+const starVelocities = new Float32Array(STAR_COUNT * 3);
+const starSizes      = new Float32Array(STAR_COUNT);
+const starBaseColors = new Float32Array(STAR_COUNT * 3);
+
+for(let i = 0; i < STAR_COUNT; i++){
+  // Depth layers
+  const depth = Math.random();
+  const r = 80 + depth * 320;
+  const th = Math.random() * Math.PI * 2;
+  const ph = Math.acos(2 * Math.random() - 1);
+  starPositions[i*3]   = r * Math.sin(ph) * Math.cos(th);
+  starPositions[i*3+1] = r * Math.sin(ph) * Math.sin(th);
+  starPositions[i*3+2] = r * Math.cos(ph);
+  
+  starVelocities[i*3]   = (Math.random()-0.5)*0.008;
+  starVelocities[i*3+1] = (Math.random()-0.5)*0.008;
+  starVelocities[i*3+2] = (Math.random()-0.5)*0.008;
+
+  starSizes[i] = 0.15 + Math.random() * 0.25 * (1 - depth * 0.7);
+
+  // Slight color variation (blue/white/warm white)
+  const tone = Math.random();
+  if(tone < 0.3) { starBaseColors[i*3]=0.3; starBaseColors[i*3+1]=0.4; starBaseColors[i*3+2]=0.7; } // blue-ish
+  else if(tone < 0.6) { starBaseColors[i*3]=0.7; starBaseColors[i*3+1]=0.75; starBaseColors[i*3+2]=0.8; } // white
+  else { starBaseColors[i*3]=0.8; starBaseColors[i*3+1]=0.7; starBaseColors[i*3+2]=0.6; } // warm
+}
+
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+starGeo.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(starBaseColors), 3));
+const starMat = new THREE.PointsMaterial({
+  vertexColors: true,
+  size: 0.28, sizeAttenuation: true,
+  transparent: true, opacity: 0.85,
+  depthWrite: false,
+});
+const starField = new THREE.Points(starGeo, starMat);
+scene.add(starField);
+
+// ─────────────────────────────────────────────
+//  CAMERA CONTROLS
+// ─────────────────────────────────────────────
+let isDragging=false, isRightDrag=false, prevX=0, prevY=0;
+let rotX=0.2, rotY=0, panX=0, panY=0, zoom=28;
+// Inertia / damping state
+let velRotX=0, velRotY=0, velZoom=0;
+const MIN_ZOOM=6, MAX_ZOOM=80;
+const cvs = renderer.domElement;
+
+let lastMouseMoveTime = 0;
+
+cvs.addEventListener('mousedown', e => { 
+  isDragging=true; isRightDrag=e.button===2; prevX=e.clientX; prevY=e.clientY; 
+  velRotX=0; velRotY=0;
+});
+window.addEventListener('mouseup', () => { isDragging=false; });
+window.addEventListener('mousemove', e => {
+  if(!isDragging) return;
+  const dx=e.clientX-prevX, dy=e.clientY-prevY;
+  if(isRightDrag){ panX-=dx*0.02; panY+=dy*0.02; }
+  else { 
+    velRotY = dx * 0.006;
+    velRotX = dy * 0.006;
+    rotY += velRotY; 
+    rotX += velRotX; 
+  }
+  prevX=e.clientX; prevY=e.clientY;
+  lastMouseMoveTime = Date.now();
+});
+cvs.addEventListener('wheel', e => {
+  velZoom = e.deltaY * 0.04;
+  zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom + velZoom));
+  syncZoomSlider();
+});
+cvs.addEventListener('contextmenu', e => e.preventDefault());
+
+let lastTouchDist=null;
+cvs.addEventListener('touchstart', e => {
+  if(e.touches.length===1){ isDragging=true; prevX=e.touches[0].clientX; prevY=e.touches[0].clientY; }
+  if(e.touches.length===2) lastTouchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+});
+cvs.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if(e.touches.length===1&&isDragging){
+    rotY+=(e.touches[0].clientX-prevX)*0.006;
+    rotX+=(e.touches[0].clientY-prevY)*0.006;
+    prevX=e.touches[0].clientX; prevY=e.touches[0].clientY;
+  }
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    if(lastTouchDist) zoom=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,zoom-(d-lastTouchDist)*0.1));
+    lastTouchDist=d;
+  }
+},{passive:false});
+cvs.addEventListener('touchend', () => { isDragging=false; lastTouchDist=null; });
+
+// ─────────────────────────────────────────────
+//  VISIBILITY TOGGLES (smooth fade)
+// ─────────────────────────────────────────────
+let showLabels = true;
+
+function fadeGroup(group, visible, duration = 0.5) {
+  group.visible = true;
+  group.children.forEach(child => {
+    if(child.material) {
+      const targetOpacity = visible ? (child.userData.baseOpacity || child.material.opacity) : 0;
+      child.material.transparent = true;
+      child.userData._fadeTarget = visible ? (child.userData.baseOpacity || child.material.opacity) : 0;
+      child.userData._fadeStart = child.material.opacity;
+      child.userData._fadeTime = 0;
+      child.userData._fadeDuration = duration;
+      child.userData._fadeVisible = visible;
+    }
+  });
+  if(!visible) {
+    setTimeout(() => { group.visible = false; }, duration * 1000 + 50);
+  }
+}
+
+document.getElementById('tog-protons').addEventListener('change',   e=>{ gProtons.visible   = e.target.checked; updateLabelVis(); });
+document.getElementById('tog-neutrons').addEventListener('change',  e=>{ gNeutrons.visible  = e.target.checked; updateLabelVis(); });
+document.getElementById('tog-electrons').addEventListener('change', e=>{ gElectrons.visible = e.target.checked; updateElectronLabelVis(); });
+document.getElementById('tog-nucleus').addEventListener('change',   e=>{ gNucleus.visible   = e.target.checked; });
+document.getElementById('tog-glow').addEventListener('change',      e=>{ auraGlow.visible = e.target.checked; auraGlow2.visible = e.target.checked; });
+document.getElementById('tog-trails').addEventListener('change',    e=>{ gTrails.visible = e.target.checked; electronMeshes.forEach(em => { if(em.trailLine) em.trailLine.visible = e.target.checked; }); });
+document.getElementById('tog-orbitals').addEventListener('change',  e=>{ gOrbitals.visible  = e.target.checked; updateOrbitalLabelVis(); });
+document.getElementById('tog-cloud').addEventListener('change',     e=>{ gCloud.visible     = e.target.checked; });
+document.getElementById('tog-labels').addEventListener('change',    e=>{ showLabels = e.target.checked; updateLabelVis(); updateOrbitalLabelVis(); updateElectronLabelVis(); });
+
+function updateLabelVis() {
+  const protonsOn  = document.getElementById('tog-protons').checked;
+  const neutronsOn = document.getElementById('tog-neutrons').checked;
+  protonSprites.forEach(s  => s.sprite.visible = showLabels && protonsOn);
+  neutronSprites.forEach(s => s.sprite.visible = showLabels && neutronsOn);
+}
+
+function updateElectronLabelVis() {
+  const electronsOn = document.getElementById('tog-electrons').checked;
+  const vis = showLabels && electronsOn;
+  electronLabels.forEach(label => { label.style.opacity = vis ? '1' : '0'; });
+  electronSprites.forEach(spr  => { spr.visible = showLabels && electronsOn; });
+}
+
+function updateOrbitalLabelVis() {
+  const orbitalsOn = document.getElementById('tog-orbitals').checked;
+  const vis = showLabels && orbitalsOn;
+  ['lbl-1s','lbl-2s','lbl-2p','lbl-3s','lbl-2px','lbl-2py','lbl-2pz'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.opacity = vis ? '1' : '0';
+  });
+}
+
+let speedMult = 1;
+document.getElementById('speed').addEventListener('input', e => {
+  speedMult = parseFloat(e.target.value);
+  document.getElementById('speed-val').textContent = speedMult.toFixed(1) + 'x';
+});
+
+// Zoom slider — sincronizado con la variable zoom del control de cámara
+const zoomSlider = document.getElementById('zoom-slider');
+const zoomVal    = document.getElementById('zoom-val');
+zoomSlider.addEventListener('input', e => {
+  zoom = parseFloat(e.target.value);
+  zoomVal.textContent = Math.round(zoom);
+});
+// Sincroniza el slider cuando el usuario hace scroll
+function syncZoomSlider() {
+  zoomSlider.value = Math.round(zoom);
+  zoomVal.textContent = Math.round(zoom);
+}
+
+// ─────────────────────────────────────────────
+//  HTML LABEL POSITIONING
+// ─────────────────────────────────────────────
+const labelAnchors = {
+  '1s': new THREE.Vector3(0,  4.5,  0),
+  '2s': new THREE.Vector3(0,  8.5,  0),
+  '2p': new THREE.Vector3(8.5*Math.sin(Math.PI/3), 0, 8.5*Math.cos(Math.PI/3)),
+  '3s': new THREE.Vector3(0, 13.5,  0),
+  '2px': new THREE.Vector3(6.5, 0, 0),
+  '2py': new THREE.Vector3(0, 6.5, 0),
+  '2pz': new THREE.Vector3(0, 0, 6.5),
+};
+const labelEls = {
+  '1s': document.getElementById('lbl-1s'),
+  '2s': document.getElementById('lbl-2s'),
+  '2p': document.getElementById('lbl-2p'),
+  '3s': document.getElementById('lbl-3s'),
+  '2px': document.getElementById('lbl-2px'),
+  '2py': document.getElementById('lbl-2py'),
+  '2pz': document.getElementById('lbl-2pz'),
+};
+
+function projectToScreen(worldVec) {
+  const v = worldVec.clone().project(camera);
+  return {
+    x: (v.x *  0.5 + 0.5) * innerWidth,
+    y: (v.y * -0.5 + 0.5) * innerHeight,
+    behind: v.z > 1,
+  };
+}
+
+function updateHTMLLabels() {
+  const orbitalsOn = document.getElementById('tog-orbitals').checked;
+  for(const [key, anchor] of Object.entries(labelAnchors)) {
+    const el  = labelEls[key];
+    const pos = projectToScreen(anchor);
+    if(pos.behind || !orbitalsOn || !showLabels) { el.style.opacity='0'; continue; }
+    el.style.left = pos.x + 'px';
+    el.style.top  = pos.y + 'px';
+    el.style.opacity = '1';
+  }
+
+  electronMeshes.forEach(e => {
+    const pos = projectToScreen(e.mesh.position);
+    if(pos.behind) { 
+      e.labelEl.style.opacity = '0';
+      return;
+    }
+    e.labelEl.style.left = pos.x + 'px';
+    e.labelEl.style.top  = pos.y + 'px';
+    e.labelEl.style.opacity = showLabels && document.getElementById('tog-electrons').checked ? '1' : '0';
+  });
+}
+
+// ─────────────────────────────────────────────
+//  POST-PROCESSING — Software bloom + vignette + grain
+// ─────────────────────────────────────────────
+const postCanvas = document.getElementById('post-canvas');
+const postCtx    = postCanvas.getContext('2d');
+
+function resizePostCanvas() {
+  postCanvas.width  = window.innerWidth;
+  postCanvas.height = window.innerHeight;
+}
+resizePostCanvas();
+
+let bloomIntensity = 1.0; // Will be modulated dynamically
+
+function applyPostProcessing(rawCanvas, time) {
+  const w = postCanvas.width, h = postCanvas.height;
+  postCtx.clearRect(0, 0, w, h);
+
+  // ── Vignette ──
+  const grad = postCtx.createRadialGradient(w/2, h/2, h*0.35, w/2, h/2, h*0.85);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.65)');
+  postCtx.fillStyle = grad;
+  postCtx.fillRect(0, 0, w, h);
+
+  // ── Film grain ──
+  const grainOpacity = 0.018 + Math.sin(time * 17.3) * 0.005;
+  postCtx.globalAlpha = grainOpacity;
+  for(let i = 0; i < 1200; i++) {
+    const gx = Math.random() * w;
+    const gy = Math.random() * h;
+    const brightness = Math.random() * 255;
+    postCtx.fillStyle = `rgb(${brightness|0},${brightness|0},${brightness|0})`;
+    postCtx.fillRect(gx, gy, 1, 1);
+  }
+  postCtx.globalAlpha = 1.0;
+
+  // ── Chromatic aberration hint (color fringe at edges) ──
+  // Rendered via subtle color channel at border
+  postCtx.globalAlpha = 0.04;
+  const caGrad = postCtx.createRadialGradient(w/2, h/2, h*0.45, w/2, h/2, h*0.75);
+  caGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  caGrad.addColorStop(0.7, 'rgba(0,0,100,0)');
+  caGrad.addColorStop(1, 'rgba(255,0,100,0.5)');
+  postCtx.fillStyle = caGrad;
+  postCtx.fillRect(0, 0, w, h);
+  postCtx.globalAlpha = 1.0;
+}
+
+// Make post canvas visible via CSS blend mode
+postCanvas.style.opacity = '1';
+postCanvas.style.mixBlendMode = 'multiply';
+postCanvas.style.pointerEvents = 'none';
+postCanvas.style.zIndex = '4';
+
+// ─────────────────────────────────────────────
+//  ENERGY PULSE SYSTEM
+// ─────────────────────────────────────────────
+let energyPulseTimer = 0;
+let currentBloomBoost = 0;
+let pulseCooldown = 0;
+
+// ─────────────────────────────────────────────
+//  CLOCK
+// ─────────────────────────────────────────────
+const clock = new THREE.Clock();
+let deltaTime = 0;
+
+// ─────────────────────────────────────────────
+//  ANIMATE
+// ─────────────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+  const rawT = clock.getElapsedTime();
+  const t    = rawT * speedMult;
+  deltaTime  = Math.min(0.05, clock.getDelta ? 0.016 : 0.016);
+
+  // ── Camera inertia & cinematic dampening ──
+  rotX = Math.max(-Math.PI/2+0.05, Math.min(Math.PI/2-0.05, rotX));
+  
+  // Apply inertia when not dragging
+  if(!isDragging) {
+    velRotX *= 0.88;
+    velRotY *= 0.88;
+    rotX += velRotX * 0.1;
+    rotY += velRotY * 0.1;
+    
+    // Subtle floating idle movement
+    const idleTime = (Date.now() - lastMouseMoveTime) / 1000;
+    if(idleTime > 3.0) {
+      const idleFactor = Math.min((idleTime - 3.0) / 5.0, 1.0);
+      rotY += Math.sin(rawT * 0.08) * 0.0008 * idleFactor;
+      rotX += Math.cos(rawT * 0.06) * 0.0004 * idleFactor;
+    }
+  }
+
+  // Smooth camera target interpolation
+  const targetCamX = Math.sin(rotY)*Math.cos(rotX)*zoom + panX;
+  const targetCamY = Math.sin(rotX)*zoom + panY;
+  const targetCamZ = Math.cos(rotY)*Math.cos(rotX)*zoom;
+  const camDamp = 0.12;
+  camCurrentX += (targetCamX - camCurrentX) * camDamp;
+  camCurrentY += (targetCamY - camCurrentY) * camDamp;
+  camCurrentZ += (targetCamZ - camCurrentZ) * camDamp;
+
+  camera.position.set(camCurrentX, camCurrentY, camCurrentZ);
+  camera.lookAt(panX, panY, 0);
+
+  // ── Energy Pulse system ──
+  pulseCooldown -= 0.016;
+  if(pulseCooldown <= 0) {
+    energyPulseTimer = rawT;
+    pulseCooldown = 3.5 + Math.random() * 4.0;
+    currentBloomBoost = 0.6 + Math.random() * 0.4;
+  }
+  const pulseAge = rawT - energyPulseTimer;
+  const pulseDecay = Math.exp(-pulseAge * 1.5);
+  const dynamicBloom = 1.0 + currentBloomBoost * pulseDecay;
+
+  // ── Nucleus — living plasma core ──
+  const vibFreq = 4.5 + Math.sin(rawT * 0.3) * 0.5;
+  const vibration = Math.sin(t * vibFreq) * 0.08 + Math.sin(t * 2.8) * 0.05 + Math.sin(t * 7.1) * 0.02;
+  const breathScale = 1 + vibration + Math.sin(t * 2.5) * 0.03 + pulseDecay * 0.08;
+  nucMesh.scale.setScalar(breathScale);
+  
+  // Inner glow pulsing
+  nucInner.material.emissiveIntensity = 2.0 + Math.sin(t * 3.2) * 0.8 + pulseDecay * 2.0;
+  nucInner.scale.setScalar(0.9 + Math.sin(t * 5.1) * 0.12 + pulseDecay * 0.15);
+  
+  // Aura breathing
+  auraGlow.material.opacity  = 0.10 + Math.sin(t * 1.8) * 0.08 + pulseDecay * 0.12;
+  auraGlow2.material.opacity = 0.04 + Math.sin(t * 1.4) * 0.04 + pulseDecay * 0.06;
+
+  // Nucleus emissive heat fluctuation
+  nucMesh.material.emissiveIntensity = 1.0 + Math.sin(t * 2.1) * 0.4 + smoothNoise(0, 0, 0, rawT * 0.5) * 0.3 + pulseDecay * 1.0;
+  
+  // Radial energy waves expand outward
+  energyWaves.forEach((w, i) => {
+    const wavePhase = ((rawT * 0.8 + w.phase) % (Math.PI * 2));
+    const expand = (wavePhase / (Math.PI * 2));
+    w.mesh.scale.setScalar(1.0 + expand * 2.5);
+    w.mesh.material.opacity = Math.max(0, 0.08 * (1 - expand) * (1 + pulseDecay * 2));
+  });
+
+  // Light intensity dynamic
+  pLight.intensity = 2.5 + Math.sin(t * 2.2) * 0.8 + pulseDecay * 2.0;
+  wLight.intensity = 0.6 + Math.sin(t * 1.7 + 1.2) * 0.2;
+
+  // ── Nucleons ──
+  const pyAngle = t * 0.12;
+  const nyAngle = -t * 0.09;
+  const nxAngle = t * 0.07;
+  gProtons.rotation.y  = pyAngle;
+  gNeutrons.rotation.y = nyAngle;
+  gNeutrons.rotation.x = nxAngle;
+
+  protonSprites.forEach((p, i) => {
+    const worldPos = p.pos.clone().applyEuler(new THREE.Euler(0, pyAngle, 0));
+    const vib = Math.sin(t * 5 + i) * 0.12;
+    worldPos.multiplyScalar(1 + vib);
+    p.sprite.position.copy(worldPos);
+  });
+
+  neutronSprites.forEach((n, i) => {
+    const worldPos = n.pos.clone().applyEuler(new THREE.Euler(nxAngle, nyAngle, 0));
+    const vib = Math.sin(t * 4.2 + i) * 0.1;
+    worldPos.multiplyScalar(1 + vib);
+    n.sprite.position.copy(worldPos);
+  });
+
+  // Nucleus quantum trails
+  trailLines.forEach((trail, idx) => {
+    trail.age += 0.016;
+    if(trail.age > 0.5) {
+      trail.age = 0;
+      if(trail.isProton) {
+        const rot = new THREE.Euler(0, pyAngle, 0);
+        trail.lastPos = protonPositions[trail.position ? trail.position.idx % 12 : idx % 12].clone().applyEuler(rot);
+      } else {
+        const rot = new THREE.Euler(nxAngle, nyAngle, 0);
+        trail.lastPos = neutronPositions[idx - 12 >= 0 ? (idx-12) % 12 : 0].clone().applyEuler(rot);
+      }
+    }
+    trail.mesh.material.opacity = 0.4 * (1 - trail.age / 0.5);
+  });
+
+  // ── Electron — quantum sprites + organic noise + line trails ──
+  const speedFactor = Math.min((speedMult - 0.1) / 2.9, 1);
+
+  electronMeshes.forEach(e => {
+    const baseSpeed = [1.6, 0.85, 0.5][e.shell];
+    const angle = t * baseSpeed * e.speed + e.phaseOffset;
+
+    // Posición base orbital
+    const targetX = Math.cos(angle) * e.radius;
+    const targetZ = Math.sin(angle) * e.radius;
+    const baseWorldPos = new THREE.Vector3(
+      targetX,
+      Math.sin(e.tilt) * targetZ,
+      Math.cos(e.tilt) * targetZ
+    );
+
+    // Fluctuaciones cuánticas (noise orgánico por electrón)
+    const timeScale = rawT * e.pulseSpeed;
+    const ns = e.noiseSeed;
+    const noiseX = smoothNoise(ns * 0.1, 0.0, 0.0, rawT * 0.4) * 0.22;
+    const noiseY = smoothNoise(0.0, ns * 0.1, 0.0, rawT * 0.35) * 0.18;
+    const quantumFluctuation = new THREE.Vector3(
+      Math.sin(timeScale + e.noiseSeedX) * 0.10 + noiseX,
+      Math.cos(timeScale * 1.1 + e.noiseSeedY) * 0.10 + noiseY,
+      Math.sin(timeScale * 0.7 + e.noiseSeedZ) * 0.10
+    );
+    e.mesh.position.copy(baseWorldPos).add(quantumFluctuation);
+
+    // ── Efectos visuales del sprite de glow ──
+    const energyFluctuation = Math.sin(rawT * e.pulseSpeed) * 0.18 + Math.cos(rawT * (e.pulseSpeed * 0.6)) * 0.08;
+    const speedIntensityBoost = 1.0 + speedFactor * 1.8;
+
+    e.mainGlowSprite.material.opacity = Math.min(1.0, (0.72 + energyFluctuation + pulseDecay * 0.4) * speedIntensityBoost);
+    e.coreSprite.material.opacity = 0.9 + Math.sin(rawT * 15) * 0.1;
+
+    const dynamicGlowScale = 1.5 + energyFluctuation * 0.3 + speedFactor * 0.8 + pulseDecay * 0.5;
+    e.mainGlowSprite.scale.set(dynamicGlowScale, dynamicGlowScale, 1);
+    e.coreSprite.scale.set(
+      0.4 + speedFactor * 0.15 + pulseDecay * 0.12,
+      0.4 + speedFactor * 0.15 + pulseDecay * 0.12,
+      1
+    );
+
+    // ── Trail como Line (fluido, plasma) ──
+    e.trailPositions.pop();
+    e.trailPositions.unshift(e.mesh.position.clone());
+
+    const posArr = e.trailGeo.attributes.position.array;
+    const colArr = e.trailGeo.attributes.color.array;
+    const activeLen = Math.max(8, Math.round(12 + speedFactor * (TRAIL_LENGTH - 12)));
+
+    for(let i = 0; i < TRAIL_LENGTH; i++) {
+      const p = e.trailPositions[i];
+      posArr[i*3]   = p.x;
+      posArr[i*3+1] = p.y;
+      posArr[i*3+2] = p.z;
+
+      const fadeFactor = i < activeLen ? Math.pow(1 - (i / activeLen), 2.0) : 0;
+      const glowBoost  = speedIntensityBoost * (1.0 + pulseDecay * 0.4);
+      colArr[i*3]   = e.trailBaseColor.r * fadeFactor * glowBoost;
+      colArr[i*3+1] = e.trailBaseColor.g * fadeFactor * glowBoost;
+      colArr[i*3+2] = e.trailBaseColor.b * fadeFactor * glowBoost;
+    }
+
+    e.trailGeo.attributes.position.needsUpdate = true;
+    e.trailGeo.attributes.color.needsUpdate    = true;
+
+    e.trailMat.opacity  = 0.60 + speedFactor * 0.40;
+    e.trailLine.visible = gElectrons.visible && document.getElementById('tog-trails').checked;
+  });
+
+  // ── Dynamic quantum clouds breathing ──
+  const cloudPulse = 0.9 + Math.sin(rawT * 0.6) * 0.1 + Math.sin(rawT * 1.3) * 0.05;
+  let cloudChildIdx = 0;
+  gCloud.children.forEach(pts => {
+    if(!pts.material) return;
+    const base = pts.userData.baseOpacity || 0.2;
+    // Each cloud gets slightly different phase
+    const phase = cloudChildIdx * 0.8;
+    const turbulence = Math.sin(rawT * 0.55 + phase) * 0.12 + Math.sin(rawT * 1.1 + phase * 1.7) * 0.06;
+    pts.material.opacity = base * (cloudPulse + turbulence);
+    // Slow rotation for cloud turbulence
+    pts.rotation.y += 0.0003 + cloudChildIdx * 0.0001;
+    pts.rotation.x += 0.0001;
+    cloudChildIdx++;
+  });
+
+  // ── Orbital ring subtle animation ──
+  orbitalRings.forEach((ring, i) => {
+    if(!ring.material) return;
+    const phase = i * 1.2;
+    ring.material.opacity = 0.18 + Math.sin(rawT * 0.8 + phase) * 0.06;
+  });
+
+  // ── P-lobe orbital breathing ──
+  plobesMeshes.forEach((m, i) => {
+    if(!m.material) return;
+    const phase = i * 0.9;
+    m.material.opacity = 0.11 + Math.sin(rawT * 0.7 + phase) * 0.04;
+    m.material.emissiveIntensity = 0.10 + Math.sin(rawT * 0.9 + phase) * 0.05 + pulseDecay * 0.08;
+  });
+
+  // ── 1s/3s cloud layer breathing ──
+  cloud1sLayers.forEach((l, i) => {
+    l.mesh.material.opacity = l.baseOp * (0.85 + Math.sin(rawT * 0.7 + i * 0.4) * 0.15);
+  });
+  cloud3sLayers.forEach((l, i) => {
+    l.mesh.material.opacity = l.baseOp * (0.85 + Math.sin(rawT * 0.55 + i * 0.5) * 0.15);
+  });
+
+  // ── Starfield parallax + flicker ──
+  const posAttr = starGeo.getAttribute('position');
+  const colorAttr = starGeo.getAttribute('color');
+  const posArray = posAttr.array;
+  const colArray = colorAttr.array;
+  
+  for(let i = 0; i < STAR_COUNT; i++) {
+    posArray[i*3]   += starVelocities[i*3];
+    posArray[i*3+1] += starVelocities[i*3+1];
+    posArray[i*3+2] += starVelocities[i*3+2];
+
+    if(Math.abs(posArray[i*3])   > 400) posArray[i*3]   *= -0.99;
+    if(Math.abs(posArray[i*3+1]) > 400) posArray[i*3+1] *= -0.99;
+    if(Math.abs(posArray[i*3+2]) > 400) posArray[i*3+2] *= -0.99;
+
+    // Subtle brightness flicker for some stars
+    if(i % 7 === 0) {
+      const flicker = 0.7 + Math.sin(rawT * (2.3 + (i % 5) * 0.7)) * 0.3;
+      colArray[i*3]   = starBaseColors[i*3]   * flicker;
+      colArray[i*3+1] = starBaseColors[i*3+1] * flicker;
+      colArray[i*3+2] = starBaseColors[i*3+2] * flicker;
+    }
+  }
+  posAttr.needsUpdate = true;
+  colorAttr.needsUpdate = true;
+
+  // ── Atmosphere particles slow drift ──
+  gAtmosphere.rotation.y += 0.00015;
+  gAtmosphere.rotation.x += 0.00008;
+
+  // ── Update HTML labels ──
+  updateHTMLLabels();
+
+  // ── Render scene ──
+  renderer.render(scene, camera);
+
+  // ── Apply 2D post-processing overlay ──
+  applyPostProcessing(renderer.domElement, rawT);
+}
+
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  resizePostCanvas();
+});
+</script>
+</body>
+</html>
